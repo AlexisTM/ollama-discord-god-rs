@@ -1,5 +1,7 @@
 mod ai21;
+mod kirby;
 pub use crate::ai21::request;
+pub use crate::kirby::Kirby;
 
 use std::env;
 
@@ -56,22 +58,10 @@ async fn main() {
         .await
         .expect("Err creating client");
 
-    let prompt = "Life is like";
-    let separators = "['.']";
-    let token_ai21 =
-        env::var("GOD_AI21_TOKEN").expect("Expected a token in the environment for AI21");
-    let resp = ai21::request(
-        &token_ai21,
-        &prompt,
-        Some(8),
-        &separators,
-        Some(0.8),
-        Some(1.0),
-        Some(1),
-        Some(1),
-    )
-    .await;
-    println!("Response {:?}", resp);
+    let a = kirby::AIPromptResponse{ prompt: "hey?".to_string(), response: "hahaha".to_string(), author: "Alexis".to_string(), botname: "Kirby".to_string() };
+    let mut b = kirby::AIMemory::new(String::from("This is Kirby... LoL"), a);
+    b.update(String::from("What is your favourite dish?"), String::from("Fish."), String::from("Alexis"),  String::from("Kirby"));
+    println!("{}", b.to_string());
 
     if let Err(why) = client.start_shards(2).await {
         println!("Client error: {:?}", why);
