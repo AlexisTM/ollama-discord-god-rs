@@ -1,3 +1,5 @@
+use std::env;
+
 pub struct AIPromptResponse {
     pub prompt: String,
     pub response: String,
@@ -65,5 +67,18 @@ impl AIMemory {
         }
 
         return result;
+    }
+}
+
+
+impl Kirby {
+    pub fn new() -> Kirby {
+        let token_ai21 = env::var("GOD_AI21_TOKEN").expect("Expected a token in the environment for AI21");
+        let initial_prompt = AIPromptResponse{ prompt: "hey?".to_string(), response: "hahaha".to_string(), author: "Alexis".to_string(), botname: "Kirby".to_string() };
+        let mut memory = AIMemory::new(String::from("This is Kirby... LoL"), initial_prompt);
+        Kirby {
+            token: token_ai21,
+            memory: memory,
+        }
     }
 }

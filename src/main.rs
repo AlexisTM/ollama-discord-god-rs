@@ -11,7 +11,17 @@ use serenity::{
     prelude::*,
 };
 
-struct Handler;
+struct Handler {
+    kirby: Kirby,
+}
+
+impl Handler {
+    fn new() -> Handler {
+        Handler {
+            kirby: Kirby::new(),
+        }
+    }
+}
 
 #[async_trait]
 impl EventHandler for Handler {
@@ -63,7 +73,7 @@ async fn main() {
     b.update(String::from("What is your favourite dish?"), String::from("Fish."), String::from("Alexis"),  String::from("Kirby"));
     println!("{}", b.to_string());
 
-    if let Err(why) = client.start_shards(2).await {
+    if let Err(why) = client.start().await {
         println!("Client error: {:?}", why);
     }
 }
