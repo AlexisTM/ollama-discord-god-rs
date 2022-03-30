@@ -1,3 +1,4 @@
+use crate::ai21::{Intellect, AI21};
 use std::env;
 
 pub struct AIPromptResponse {
@@ -15,7 +16,7 @@ pub struct AIMemory {
 
 // trait Bot, for Kirby
 pub struct Kirby {
-    pub token: String,
+    pub brain: Box<dyn Intellect + Sync + Send>,
     pub memory: AIMemory,
 }
 
@@ -34,9 +35,9 @@ impl AIPromptResponse {
 impl AIMemory {
     pub fn new(base_text: String, base_prompt: AIPromptResponse) -> AIMemory {
         AIMemory {
-            base_text : base_text,
-            base_prompt : base_prompt,
-            remembrances : Vec::new(),
+            base_text: base_text,
+            base_prompt: base_prompt,
+            remembrances: Vec::new(),
         }
     }
 
@@ -70,14 +71,25 @@ impl AIMemory {
     }
 }
 
-
 impl Kirby {
     pub fn new() -> Kirby {
-        let token_ai21 = env::var("GOD_AI21_TOKEN").expect("Expected a token in the environment for AI21");
-        let initial_prompt = AIPromptResponse{ prompt: "hey?".to_string(), response: "hahaha".to_string(), author: "Alexis".to_string(), botname: "Kirby".to_string() };
-        let mut memory = AIMemory::new(String::from("This is Kirby... LoL"), initial_prompt);
+        let token_ai21 =
+            env::var("GOD_AI21_TOKEN").expect("Expected a token in the environment for AI21");
+        let initial_prompt = AIPromptResponse {
+            prompt: "hey?".to_string(),
+            response: "hahaha".to_string(),
+            author: "Alexis".to_string(),
+            botname: "Kirby".to_string(),
+        };
+        let memory = AIMemory::new(String::from("This is Kirby... LoL"), initial_prompt);
         Kirby {
-            token: token_ai21,
+            brain: Box::new(AI21 {
+                token: token_ai21,
+                stop_sequences: vec!["Kirby: ".to_string(), "\n\n\n".to_string()],
+                max_tokens: 250,
+                temperature: 0.7,
+                top_p: 1.0,
+            }),
             memory: memory,
         }
     }
