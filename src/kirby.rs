@@ -1,5 +1,6 @@
 use crate::ai21::{Intellect, AI21};
 use std::env;
+use std::fmt;
 
 pub struct AIPromptResponse {
     pub prompt: String,
@@ -15,9 +16,10 @@ pub struct AIMemory {
 }
 
 // trait Bot, for Kirby
+#[derive(Debug)]
 pub struct Kirby {
     pub brain: Box<dyn Intellect + Sync + Send>,
-    pub memory: AIMemory,
+    pub memory: Box<AIMemory>,
 }
 
 impl AIPromptResponse {
@@ -76,12 +78,12 @@ impl Kirby {
         let token_ai21 =
             env::var("GOD_AI21_TOKEN").expect("Expected a token in the environment for AI21");
         let initial_prompt = AIPromptResponse {
-            prompt: "hey?".to_string(),
-            response: "hahaha".to_string(),
+            prompt: "Who is god?".to_string(),
+            response: "Well, now that you ask, I can tell you. I, Kirby is the great goddess is the god of everybody!\n".to_string(),
             author: "Alexis".to_string(),
             botname: "Kirby".to_string(),
         };
-        let memory = AIMemory::new(String::from("This is Kirby... LoL"), initial_prompt);
+        let memory = AIMemory::new(String::from("Kirby is the god of all beings. Yet, he is the most lovely god and answers in a very complete manner.\n\n"), initial_prompt);
         Kirby {
             brain: Box::new(AI21 {
                 token: token_ai21,
@@ -90,7 +92,19 @@ impl Kirby {
                 temperature: 0.7,
                 top_p: 1.0,
             }),
-            memory: memory,
+            memory: Box::new(memory),
         }
+    }
+}
+
+impl std::fmt::Debug for Box<AIMemory> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Ohoh, that is a Box<AIMemory!>")
+    }
+}
+
+impl std::fmt::Debug for Box<dyn Intellect + Sync + Send> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Ohoh, that is a Box<AIMemory!>")
     }
 }
