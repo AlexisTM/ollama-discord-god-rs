@@ -101,7 +101,7 @@ impl AIMemory {
 
     pub fn clean(&mut self) {
         if self.recollections.len() > 12 {
-            self.recollections.0 = self.recollections.0[self.recollections.len()-13..self.recollections.len() -1].to_vec();
+            self.recollections.0 = self.recollections.0[self.recollections.len()-12..self.recollections.len()].to_vec();
         }
     }
 
