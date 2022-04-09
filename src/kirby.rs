@@ -1,17 +1,24 @@
 use crate::ai21::{Intellect, AI21};
-use std::borrow::Borrow;
 use std::env;
 use std::fmt;
 
+// By using a tuple, I can implement Display for Vec<DiscussionKind>
 pub struct Discussion(pub Vec<DiscussionKind>);
 
+// Context is the "Always there"
 pub struct AIMemory {
+    // Always there, on top of the AI prompt, such as: "This is the discussion between xxx and yyy."
     context: String,
+    // We were created last thursday, this is the discussion the bot is born with.
     thursdayism: Discussion,
+    // The actual live memory of the bot.
     recollections: Discussion,
 }
 
+#[derive(Clone)]
 pub enum DiscussionKind {
+    // Splitting them allows to put some different parsing (one extra \n) for responses.
+    // Another implementation would have been to use a NewLine type and have only Prompts.
     Prompt { author: String, prompt: String },
     Response { author: String, prompt: String },
 }
@@ -92,20 +99,18 @@ impl AIMemory {
         self.recollections.clear();
     }
 
+    pub fn clean(&mut self) {
+        if self.recollections.len() > 12 {
+            self.recollections.0 = self.recollections.0[self.recollections.len()-13..self.recollections.len() -1].to_vec();
+        }
+    }
+
     pub fn to_string(&self) -> String {
-        let mut result = String::new();
-        result.push_str(&self.context);
-        result.push_str("\n\n");
-
         if self.recollections.len() <= 6 {
-            result.push_str(&self.thursdayism.to_string());
+            return format!("{}\n\n{}{}", self.context, self.thursdayism, self.recollections);
+        } else {
+            return format!("{}\n\n{}", self.context, self.recollections);
         }
-
-        for val in &self.recollections.0[0..self.recollections.len()] {
-            result.push_str(&val.to_string());
-        }
-
-        return result;
     }
 }
 
