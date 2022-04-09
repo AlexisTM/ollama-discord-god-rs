@@ -3,7 +3,7 @@ pub mod kirby;
 
 use std::{collections::HashMap, sync::Arc};
 
-pub use crate::kirby::{AIPromptResponse, Kirby};
+pub use crate::kirby::Kirby;
 
 use std::env;
 
@@ -29,42 +29,29 @@ fn get_name<T>(val: T) -> String {
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
         if msg.content.starts_with("OMG") {
-            let slice = &msg.content["OMG".len()..];
+            let prompt_slice = &msg.content["OMG".len()..];
             let author_name = msg.author.name.clone();
-            let possible_prompt = AIPromptResponse {
-                prompt: slice.to_string(),
-                response: "".to_string(),
-                author: author_name.clone(),
-                botname: "Kirby".to_string(),
-            };
-
             {
                 let mut data = ctx.data.write().await;
                 let nursery = data
                     .get_mut::<KirbyNursery>()
                     .expect("There should be a nursery here.");
 
-                // .clone(); // ["val"]; //HashMap::<String, RwLock<Kirby>>::new()));
-                //alloc::sync::Arc<std::collections::hash::map::HashMap<alloc::string::String, tokio::sync::rwlock::RwLock<kirby::kirby::Kirby>>>
-                // println!("{}", get_name(nursery));
+                let kirby = nursery
+                    .entry("hey".to_string())
+                    .or_insert(Kirby::new("Kirby"));
 
-                let kirby = nursery.entry("hey".to_string()).or_insert(Kirby::new());
+                let prompt = kirby.get_prompt(&author_name, prompt_slice);
 
-                let prompt = format!(
-                    "{}\n{}",
-                    kirby.memory.to_string(),
-                    possible_prompt.to_string()
-                );
                 println!("Prompt: {:?}", prompt);
                 let res = kirby.brain.request(&prompt).await;
 
+                //prompt_slice.to_string(), res, author_name, "Kirby".to_string()
                 if res != "" {
                     if let Err(why) = msg.channel_id.say(&ctx.http, &res).await {
                         println!("Error sending message: {:?}", why);
                     }
-                    kirby
-                        .memory
-                        .update(slice.to_string(), res, author_name, "Kirby".to_string());
+                    kirby.set_response(&res);
                 }
 
                 if let Err(why) = msg
@@ -75,48 +62,6 @@ impl EventHandler for Handler {
                     println!("Error sending message: {:?}", why);
                 }
             };
-
-
-            /*
-            let prompt = format!(
-                "{}\n{}",
-                self.kirby.memory.to_string(),
-                possible_prompt.to_string()
-            );
-            println!("Prompt: {:?}", prompt);
-            let res = self.kirby.brain.request(&prompt).await;
-
-            if res != "" {
-                if let Err(why) = msg.channel_id.say(&ctx.http, &res).await {
-                    println!("Error sending message: {:?}", why);
-                }
-                self.kirby
-                    .memory
-                    .update(slice.to_string(), res, author_name, "Kirby".to_string());
-            }
-            /*
-            let separators: Vec<String> = vec![".".to_string()];
-            let token_ai21 =
-                env::var("GOD_AI21_TOKEN").expect("Expected a token in the environment for AI21");
-            let resp = ai21::request(
-                &token_ai21,
-                &msg.content,
-                8,
-                &separators,
-                0.8,
-                1.0
-            )
-            .await;
-            */
-            match resp {
-                Ok(n) => {
-                    if let Err(why) = msg.channel_id.say(&ctx.http, &n).await {
-                        println!("Error sending message: {:?}", why);
-                    }
-                }
-                Err(error) => println!("Error getting the response {}", error),
-            }
-            */
         }
     }
 
@@ -135,33 +80,20 @@ async fn main() {
         .await
         .expect("Err creating client");
 
-    let a = kirby::AIPromptResponse {
-        prompt: "hey?".to_string(),
-        response: "hahaha".to_string(),
-        author: "Alexis".to_string(),
-        botname: "Kirby".to_string(),
-    };
-    let mut b = kirby::AIMemory::new(String::from("This is Kirby... LoL"), a);
-    b.update(
-        String::from("What is your favourite dish?"),
-        String::from("Fish."),
-        String::from("Alexis"),
-        String::from("Kirby"),
+    // Quick test of the prompts
+    let initial_prompt: kirby::Discussion = kirby::Discussion(
+        vec![kirby::DiscussionKind::Prompt{author: "Alexis".to_string(), prompt: "Who is god?".to_string()}, kirby::DiscussionKind::Response{author: "Kirby".to_string(), prompt: "Well, now that you ask, I can tell you. I, Kirby is the great goddess is the god of everybody!".to_string()}],
     );
+    let mut memory = kirby::AIMemory::new(String::from("This is Kirby... LoL"), initial_prompt);
+    let _prompt = memory.get_prompt("Alexis", "Coucou", "Kirby");
+    memory.set_response("Kirby", "Oh, okay");
+    println!("{}", memory.to_string());
 
+    // Prepare the Kirby nursery global data
     {
-        // Open the data lock in write mode, so keys can be inserted to it.
         let mut data = client.data.write().await;
-
-        // The CommandCounter Value has the following type:
-        // Arc<RwLock<HashMap<String, u64>>>
-        // So, we have to insert the same type to it.
-        // Arc<HashMap<String, RwLock<Kirby>>>
         data.insert::<KirbyNursery>(HashMap::default());
-
-        // data.insert::<MessageCount>(Arc::new(AtomicUsize::new(0)));
     }
-    println!("{}", b.to_string());
 
     if let Err(why) = client.start().await {
         println!("Client error: {:?}", why);
