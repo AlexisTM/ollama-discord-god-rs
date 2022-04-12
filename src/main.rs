@@ -100,7 +100,15 @@ async fn main() {
 
     // Quick test of the prompts
     let initial_prompt: kirby::Discussion = kirby::Discussion(
-        vec![kirby::DiscussionKind::Prompt{author: "Alexis".to_string(), prompt: "Who is god?".to_string()}, kirby::DiscussionKind::Response{author: "Kirby".to_string(), prompt: "Well, now that you ask, I can tell you. I, Kirby is the great goddess is the god of everybody!".to_string()}],
+        vec![
+            kirby::DiscussionKind::Prompt{
+                author: "Alexis".to_string(),
+                prompt: "Who is god?".to_string()
+            },
+            kirby::DiscussionKind::Response{
+                author: "Kirby".to_string(),
+                prompt: "Well, now that you ask, I can tell you. I, Kirby is the great goddess is the god of everybody!".to_string()
+            }],
     );
     let mut memory = kirby::AIMemory::new(String::from("This is Kirby... LoL"), initial_prompt);
     let _prompt = memory.get_prompt("Alexis", "Coucou", "Kirby");

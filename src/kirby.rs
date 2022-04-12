@@ -102,13 +102,18 @@ impl AIMemory {
 
     pub fn clean(&mut self) {
         if self.recollections.len() > 12 {
-            self.recollections.0 = self.recollections.0[self.recollections.len()-12..self.recollections.len()].to_vec();
+            self.recollections.0 = self.recollections.0
+                [self.recollections.len() - 12..self.recollections.len()]
+                .to_vec();
         }
     }
 
     pub fn to_string(&self) -> String {
         if self.recollections.len() <= 6 {
-            return format!("{}\n\n{}{}", self.context, self.thursdayism, self.recollections);
+            return format!(
+                "{}\n\n{}{}",
+                self.context, self.thursdayism, self.recollections
+            );
         } else {
             return format!("{}\n\n{}", self.context, self.recollections);
         }
@@ -119,8 +124,17 @@ impl Kirby {
     pub fn new(botname: &str) -> Kirby {
         let token_ai21 =
             env::var("GOD_AI21_TOKEN").expect("Expected a token in the environment for AI21");
+
         let initial_prompt: Discussion = Discussion(
-            vec![DiscussionKind::Prompt{author: "Alexis".to_string(), prompt: "Who is god?".to_string()}, DiscussionKind::Response{author: "Kirby".to_string(), prompt: "Well, now that you ask, I can tell you. I, Kirby is the great goddess is the god of everybody!".to_string()}],
+            vec![
+                DiscussionKind::Prompt{
+                    author: "Alexis".to_string(),
+                    prompt: "Who is god?".to_string()
+                },
+                DiscussionKind::Response{
+                    author: "Kirby".to_string(),
+                    prompt: "Well, now that you ask, I can tell you. I, Kirby is the great goddess is the god of everybody!".to_string()
+                }],
         );
         let memory = AIMemory::new(String::from("Kirby is the god of all beings. Yet, he is the most lovely god and answers in a very complete manner.\n\n"), initial_prompt);
 
