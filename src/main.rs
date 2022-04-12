@@ -16,7 +16,7 @@ use serenity::{
 struct KirbyNursery;
 
 impl TypeMapKey for KirbyNursery {
-    type Value = RwLock<HashMap<String, Arc<RwLock<Kirby>>>>;
+    type Value = RwLock<HashMap<u64, Arc<RwLock<Kirby>>>>;
 }
 
 struct Handler {}
@@ -31,9 +31,8 @@ impl EventHandler for Handler {
         if msg.content.starts_with("OMG") {
             let prompt_slice = &msg.content["OMG".len()..];
             let author_name = msg.author.name.clone();
-            let key = "hey".to_string();
 
-
+            let key = msg.channel_id.0.clone();
             let data = ctx.data.read().await;
             let nursery = data
                 .get::<KirbyNursery>()
@@ -44,7 +43,7 @@ impl EventHandler for Handler {
 
             if !has_kirby {
                 let mut write_nursery = nursery.write().await;
-                write_nursery.insert(key.to_string(), Arc::new(RwLock::new(Kirby::new("Kirby"))));
+                write_nursery.insert(key, Arc::new(RwLock::new(Kirby::new("Kirby"))));
             }
 
             let kirby = {
