@@ -111,6 +111,3 @@ impl Intellect for AI21 {
     }
   }
 }
-
-unsafe impl Sync for AI21 {}
-unsafe impl Send for AI21 {}
