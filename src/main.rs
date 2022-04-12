@@ -1,5 +1,6 @@
 pub mod ai21;
 pub mod kirby;
+pub mod error;
 
 use std::{collections::HashMap, sync::Arc};
 

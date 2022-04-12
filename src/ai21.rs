@@ -1,3 +1,4 @@
+use crate::error::KirbyError;
 use serde_json::Value;
 use unescape::unescape;
 use async_trait::async_trait;
@@ -15,34 +16,6 @@ pub struct AI21 {
   pub top_p: f32,
 }
 
-#[derive(Debug)]
-pub enum AI21Errors {
-  RequestError(reqwest::Error),
-  SerdeError(serde_json::Error),
-}
-impl std::fmt::Display for AI21Errors {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-      match self {
-          AI21Errors::RequestError(parse_int_error) =>
-              write!(f, "{}", parse_int_error),
-          AI21Errors::SerdeError(io_error) =>
-              write!(f, "{}", io_error),
-      }
-  }
-}
-impl std::error::Error for AI21Errors {}
-impl From<reqwest::Error> for AI21Errors {
-  fn from(err: reqwest::Error) -> Self {
-      AI21Errors::RequestError(err)
-  }
-}
-
-impl From<serde_json::Error> for AI21Errors {
-  fn from(err: serde_json::Error) -> Self {
-      AI21Errors::SerdeError(err)
-  }
-}
-
 impl AI21 {
   pub async fn request(
     &self,
@@ -52,7 +25,7 @@ impl AI21 {
     stop_sequences: &Vec<String>,
     temperature: f32,
     top_p: f32,
-  ) -> Result<String, AI21Errors> {
+  ) -> Result<String, KirbyError> {
     let url = format!(
       "https://api.ai21.com/studio/v1/{model}/complete",
       model = "j1-jumbo"
