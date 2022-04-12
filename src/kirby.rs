@@ -93,6 +93,7 @@ impl AIMemory {
             author: author.to_string(),
             prompt: prompt.to_string(),
         });
+        self.clean();
     }
 
     pub fn clear(&mut self) {
@@ -142,6 +143,10 @@ impl Kirby {
 
     pub fn set_response(&mut self, prompt: &str) {
         self.memory.set_response(&self.botname, prompt)
+    }
+
+    pub fn clear(&mut self) {
+        self.memory.clear();
     }
 }
 

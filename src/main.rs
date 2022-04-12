@@ -28,11 +28,30 @@ fn get_name<T>(_: T) -> String {
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
+        let key = msg.channel_id.0.clone();
+
+        if msg.content.starts_with("kirby clean") {
+            let data = ctx.data.read().await;
+            let nursery = data
+                .get::<KirbyNursery>()
+                .expect("There should be a nursery here.")
+                .clone();
+
+            let has_kirby = nursery.read().await.contains_key(&key);
+
+            if has_kirby {
+                let kirby = {
+                    let read_nursery = nursery.read().await;
+                    read_nursery.get(&key).unwrap().clone()
+                };
+                kirby.write().await.clear();
+            }
+        }
+
         if msg.content.starts_with("OMG") {
             let prompt_slice = &msg.content["OMG".len()..];
             let author_name = msg.author.name.clone();
 
-            let key = msg.channel_id.0.clone();
             let data = ctx.data.read().await;
             let nursery = data
                 .get::<KirbyNursery>()
@@ -61,14 +80,6 @@ impl EventHandler for Handler {
                 }
                 kirby.write().await.set_response(&response);
             }
-
-            if let Err(why) = msg
-                .channel_id
-                .say(&ctx.http, &kirby.read().await.memory.to_string())
-                .await
-            {
-                println!("Error sending message: {:?}", why);
-            };
         }
     }
 
