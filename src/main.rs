@@ -56,8 +56,7 @@ impl EventHandler for Handler {
             let data = ctx.data.read().await;
             let nursery = data
                 .get::<KirbyNursery>()
-                .expect("There should be a nursery here.")
-                .clone();
+                .expect("There should be a nursery here.");
 
             let has_kirby = nursery.read().await.contains_key(&key);
 
