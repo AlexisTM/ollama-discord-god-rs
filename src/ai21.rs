@@ -58,13 +58,10 @@ impl AI21 {
 
     let ai_completion = response_json
       .get("completions")
-      .unwrap()
-      .get(0)
-      .unwrap()
-      .get("data")
-      .unwrap()
-      .get("text")
-      .unwrap();
+      .and_then(|value| value.get(0))
+      .and_then(|value| value.get("data"))
+      .and_then(|value| value.get("text"))
+      .and_then(|value| value.as_str()).unwrap();
     return Ok(ai_completion.to_string());
   }
 }
