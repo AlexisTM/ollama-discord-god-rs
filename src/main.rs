@@ -16,12 +16,12 @@ use serenity::{
 struct KirbyNursery;
 
 impl TypeMapKey for KirbyNursery {
-    type Value = HashMap<String, Kirby>;
+    type Value = RwLock<HashMap<String, Arc<RwLock<Kirby>>>>;
 }
 
 struct Handler {}
 
-fn get_name<T>(val: T) -> String {
+fn get_name<T>(_: T) -> String {
     return std::any::type_name::<T>().to_string();
 }
 
@@ -31,36 +31,44 @@ impl EventHandler for Handler {
         if msg.content.starts_with("OMG") {
             let prompt_slice = &msg.content["OMG".len()..];
             let author_name = msg.author.name.clone();
-            {
-                let mut data = ctx.data.write().await;
-                let nursery = data
-                    .get_mut::<KirbyNursery>()
-                    .expect("There should be a nursery here.");
+            let key = "hey".to_string();
 
-                let kirby = nursery
-                    .entry("hey".to_string())
-                    .or_insert(Kirby::new("Kirby"));
 
-                let prompt = kirby.get_prompt(&author_name, prompt_slice);
+            let data = ctx.data.read().await;
+            let nursery = data
+                .get::<KirbyNursery>()
+                .expect("There should be a nursery here.")
+                .clone();
 
-                println!("Prompt: {:?}", prompt);
-                let res = kirby.brain.request(&prompt).await;
+            let has_kirby = nursery.read().await.contains_key(&key);
 
-                //prompt_slice.to_string(), res, author_name, "Kirby".to_string()
-                if res != "" {
-                    if let Err(why) = msg.channel_id.say(&ctx.http, &res).await {
-                        println!("Error sending message: {:?}", why);
-                    }
-                    kirby.set_response(&res);
-                }
+            if !has_kirby {
+                let mut write_nursery = nursery.write().await;
+                write_nursery.insert(key.to_string(), Arc::new(RwLock::new(Kirby::new("Kirby"))));
+            }
 
-                if let Err(why) = msg
-                    .channel_id
-                    .say(&ctx.http, &kirby.memory.to_string())
-                    .await
-                {
+            let kirby = {
+                let read_nursery = nursery.read().await;
+                read_nursery.get(&key).unwrap().clone()
+            };
+
+            let prompt = { kirby.write().await.get_prompt(&author_name, prompt_slice) };
+
+            let response = { kirby.read().await.brain.request(&prompt).await };
+
+            if response != "" {
+                if let Err(why) = msg.channel_id.say(&ctx.http, &response).await {
                     println!("Error sending message: {:?}", why);
                 }
+                kirby.write().await.set_response(&response);
+            }
+
+            if let Err(why) = msg
+                .channel_id
+                .say(&ctx.http, &kirby.read().await.memory.to_string())
+                .await
+            {
+                println!("Error sending message: {:?}", why);
             };
         }
     }
@@ -92,7 +100,7 @@ async fn main() {
     // Prepare the Kirby nursery global data
     {
         let mut data = client.data.write().await;
-        data.insert::<KirbyNursery>(HashMap::default());
+        data.insert::<KirbyNursery>(RwLock::new(HashMap::default()));
     }
 
     if let Err(why) = client.start().await {
