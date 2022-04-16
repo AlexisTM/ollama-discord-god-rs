@@ -6,6 +6,7 @@ This is a refactoring of https://github.com/AlexisTM/gpt3-discord-bot in rust fo
 Environment keys:
 - AI21_API_KEY
 - DISCORD_BOT_TOKEN
+- DISCORD_APPID
 
 Come and test on Discord!: https://discord.gg/Y8XPcj2Q
 
@@ -19,30 +20,6 @@ Commands
     - Remembers the 5 last prompts & answers
     - Clean the memory with `Kirby clean`
 - `Marv: ` => Answers as a chatbot that reluctantly answers questions. Not maintained ;)
-
-Installation
-==========
-
-```bash
-git clone https://github.com/AlexisTM/gpt3-discord-bot
-
-cd gpt3-discord-bot
-python3 -m pip install -r requirements.txt --user
-
-export DISCORD_BOTOKEN="sometoken"
-export OPENAI_KEY="someothertoken"
-export AI21_API_KEY="yetanothertoken"
-
-python3 main.py
-```
-
-Notes:
-- You can directly speak to the bot for a direct chat to Kirby
-- The 5 message memory is over the same channel. I will eventually add the user name in the memory for more coherence.
-- AI21 is free with enough fun for a day, but is much less smart than OpenAI's version in my biased opinion.
-
-
-![Wow, Kirby is so funny](doc/kirby.png)
 
 
 Technical help on how to make a Discord bot:

@@ -1,6 +1,6 @@
 pub mod ai21;
-pub mod kirby;
 pub mod error;
+pub mod kirby;
 
 use std::{collections::HashMap, sync::Arc};
 
@@ -10,7 +10,18 @@ use std::env;
 
 use serenity::{
     async_trait,
-    model::{channel::Message, gateway::Ready},
+    model::{
+        channel::Message,
+        gateway::Ready,
+        id::GuildId,
+        interactions::{
+            application_command::{
+                ApplicationCommand, ApplicationCommandInteractionDataOptionValue,
+                ApplicationCommandOptionType, ApplicationCommandType,
+            },
+            Interaction, InteractionResponseType,
+        },
+    },
     prelude::{Client, Context, EventHandler, RwLock, TypeMapKey},
 };
 
@@ -28,15 +39,35 @@ fn get_name<T>(_: T) -> String {
 
 #[async_trait]
 impl EventHandler for Handler {
+    async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
+        if let Interaction::ApplicationCommand(command) = interaction {
+            let content = match command.data.name.as_str() {
+                "kirby" => "Hey, I'm alive Kirby!".to_string(),
+                "k" => "Hey, I'm alive K!".to_string(),
+                _ => "not implemented :(".to_string(),
+            };
+
+            if let Err(why) = command
+                .create_interaction_response(&ctx.http, |response| {
+                    response
+                        .kind(InteractionResponseType::ChannelMessageWithSource)
+                        .interaction_response_data(|message| message.content(content))
+                })
+                .await
+            {
+                println!("Cannot respond to slash command: {}", why);
+            }
+        }
+    }
+
     async fn message(&self, ctx: Context, msg: Message) {
-        let key = msg.channel_id.0.clone();
+        let key = msg.channel_id.0;
 
         if msg.content.starts_with("kirby clean") {
             let data = ctx.data.read().await;
             let nursery = data
                 .get::<KirbyNursery>()
-                .expect("There should be a nursery here.")
-                .clone();
+                .expect("There should be a nursery here.");
 
             let has_kirby = nursery.read().await.contains_key(&key);
 
@@ -74,7 +105,7 @@ impl EventHandler for Handler {
 
             let response = { kirby.read().await.brain.request(&prompt).await };
 
-            if response != "" {
+            if !response.is_empty() {
                 if let Err(why) = msg.channel_id.say(&ctx.http, &response).await {
                     println!("Error sending message: {:?}", why);
                 }
@@ -83,8 +114,22 @@ impl EventHandler for Handler {
         }
     }
 
-    async fn ready(&self, _: Context, ready: Ready) {
+    async fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
+
+        let _ = ApplicationCommand::create_global_application_command(&ctx.http, |command| {
+            command
+                .name("kirby")
+                .description("Speak to Kirby, your savior.")
+                .create_option(|option| {
+                    option
+                        .name("message")
+                        .description("The message to send")
+                        .kind(ApplicationCommandOptionType::String)
+                        .required(true)
+                })
+        })
+        .await;
     }
 }
 
@@ -93,8 +138,14 @@ async fn main() {
     // Configure the client with your Discord bot token in the environment.
     let token_discord =
         env::var("DISCORD_BOT_TOKEN").expect("Expected a token in the environment for discord");
+
+    let application_id: u64 = env::var("DISCORD_APPID")
+        .expect("Expected an application id in the environment")
+        .parse()
+        .expect("application id is not a valid id");
     let mut client = Client::builder(&token_discord)
         .event_handler(Handler {})
+        .application_id(application_id)
         .await
         .expect("Err creating client");
 

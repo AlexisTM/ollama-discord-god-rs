@@ -27,10 +27,10 @@ impl fmt::Display for DiscussionKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             DiscussionKind::Prompt { author, prompt } => {
-                write!(f, "{}: {}\n", author, prompt)
+                writeln!(f, "{}: {}", author, prompt)
             }
             DiscussionKind::Response { author, prompt } => {
-                write!(f, "{}: {}\n\n", author, prompt)
+                writeln!(f, "{}: {}\n", author, prompt)
             }
         }
     }
@@ -61,6 +61,10 @@ impl Discussion {
     pub fn init(&mut self) {
         self.0 = Vec::new();
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 }
 
 // trait Bot, for Kirby
@@ -74,8 +78,8 @@ pub struct Kirby {
 impl AIMemory {
     pub fn new(context: String, thursdayism: Discussion) -> AIMemory {
         AIMemory {
-            context: context,
-            thursdayism: thursdayism,
+            context,
+            thursdayism,
             recollections: Discussion(Vec::new()),
         }
     }
