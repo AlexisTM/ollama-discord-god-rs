@@ -39,27 +39,6 @@ fn get_name<T>(_: T) -> String {
 
 #[async_trait]
 impl EventHandler for Handler {
-    async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-        if let Interaction::ApplicationCommand(command) = interaction {
-            let content = match command.data.name.as_str() {
-                "kirby" => "Hey, I'm alive Kirby!".to_string(),
-                "k" => "Hey, I'm alive K!".to_string(),
-                _ => "not implemented :(".to_string(),
-            };
-
-            if let Err(why) = command
-                .create_interaction_response(&ctx.http, |response| {
-                    response
-                        .kind(InteractionResponseType::ChannelMessageWithSource)
-                        .interaction_response_data(|message| message.content(content))
-                })
-                .await
-            {
-                println!("Cannot respond to slash command: {}", why);
-            }
-        }
-    }
-
     async fn message(&self, ctx: Context, msg: Message) {
         let key = msg.channel_id.0;
 
@@ -118,20 +97,6 @@ impl EventHandler for Handler {
 
     async fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
-
-        let _ = ApplicationCommand::create_global_application_command(&ctx.http, |command| {
-            command
-                .name("kirby")
-                .description("Speak to Kirby, your savior.")
-                .create_option(|option| {
-                    option
-                        .name("message")
-                        .description("The message to send")
-                        .kind(ApplicationCommandOptionType::String)
-                        .required(true)
-                })
-        })
-        .await;
     }
 }
 
