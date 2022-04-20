@@ -84,12 +84,19 @@ impl AIMemory {
         }
     }
 
-    pub fn get_prompt(&mut self, author: &str, prompt: &str, botname: &str) -> String {
+    pub fn get_prompt(&self, author: &str, prompt: &str, botname: &str) -> String {
+        let prompt = DiscussionKind::Prompt {
+            author: author.to_string(),
+            prompt: prompt.to_string(),
+        };
+        return format!("{}{}\n{}:", self.to_string(), prompt.to_string(), botname);
+    }
+
+    pub fn set_prompt(&mut self, author: &str, prompt: &str) {
         self.recollections.push(DiscussionKind::Prompt {
             author: author.to_string(),
             prompt: prompt.to_string(),
         });
-        return format!("{}\n{}:", self.to_string(), botname);
     }
 
     pub fn set_response(&mut self, author: &str, prompt: &str) {
@@ -155,12 +162,13 @@ impl Kirby {
         }
     }
 
-    pub fn get_prompt(&mut self, author: &str, prompt: &str) -> String {
+    pub fn get_prompt(&self, author: &str, prompt: &str) -> String {
         self.memory.get_prompt(author, prompt, &self.botname)
     }
 
-    pub fn set_response(&mut self, prompt: &str) {
-        self.memory.set_response(&self.botname, prompt)
+    pub fn set_prompt_response(&mut self, author: &str, prompt: &str, response: &str) {
+        self.memory.set_prompt(author, prompt);
+        self.memory.set_response(&self.botname, response)
     }
 
     pub fn clear(&mut self) {

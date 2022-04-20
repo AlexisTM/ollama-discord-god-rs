@@ -101,7 +101,7 @@ impl EventHandler for Handler {
                 read_nursery.get(&key).unwrap().clone()
             };
 
-            let prompt = { kirby.write().await.get_prompt(&author_name, prompt_slice) };
+            let prompt = { kirby.read().await.get_prompt(&author_name, prompt_slice) };
 
             let response = { kirby.read().await.brain.request(&prompt).await };
 
@@ -109,7 +109,9 @@ impl EventHandler for Handler {
                 if let Err(why) = msg.channel_id.say(&ctx.http, &response).await {
                     println!("Error sending message: {:?}", why);
                 }
-                kirby.write().await.set_response(&response);
+                {
+                    kirby.write().await.set_prompt_response(&author_name, prompt_slice, &response);
+                }
             }
         }
     }
