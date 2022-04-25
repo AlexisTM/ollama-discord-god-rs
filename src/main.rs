@@ -147,7 +147,7 @@ impl EventHandler for Handler {
         use serenity::model::gateway::Activity;
         use serenity::model::user::OnlineStatus;
 
-        let activity = Activity::playing("God");
+        let activity = Activity::playing("Being the master of the universe.");
         let status = OnlineStatus::DoNotDisturb;
 
         context.set_presence(Some(activity), status).await;
