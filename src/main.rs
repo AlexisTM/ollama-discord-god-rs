@@ -39,10 +39,10 @@ fn get_name<T>(_: T) -> String {
     return std::any::type_name::<T>().to_string();
 }
 
-static KIRBY_REQUEST: &str = "Kirby god: ";
-static KIRBY_CLEAN: &str = "Kirby clean";
-static KIRBY_PRESENCE: &str = "Kirby are you there?";
-static KIRBY_ANY: &str = "Kirby";
+static KIRBY_REQUEST: &str = "kirby god: ";
+static KIRBY_CLEAN: &str = "kirby clean";
+static KIRBY_PRESENCE: &str = "kirby are you there?";
+static KIRBY_ANY: &str = "kirby";
 
 async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<Kirby>> {
     let data = ctx.data.read().await;
@@ -71,9 +71,6 @@ impl EventHandler for Handler {
         let key = msg.channel_id.0;
         let lowercase = msg.content.to_ascii_lowercase();
 
-        if let Err(why) = msg.channel_id.say(&ctx.http, "GOT TEST.").await {
-            println!("Error sending message: {:?}", why);
-        }
         if lowercase.starts_with(KIRBY_CLEAN) {
             let kirby = get_or_create_bot(&ctx, key).await;
             kirby.write().await.clear();

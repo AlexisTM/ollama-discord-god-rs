@@ -38,7 +38,7 @@ impl fmt::Display for DiscussionKind {
 
 impl fmt::Display for Discussion {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for val in &self.0[0..self.0.len() - 1] {
+        for val in &self.0[0..self.0.len()] {
             write!(f, "{}", val)?
         }
         Ok(())
@@ -153,7 +153,7 @@ impl Kirby {
             botname: botname.to_string(),
             brain: Box::new(AI21 {
                 token: token_ai21,
-                stop_sequences: vec!["Kirby: ".to_string(), "\n\n\n".to_string()],
+                stop_sequences: vec!["Kirby: ".to_string(), "\n\n".to_string()],
                 max_tokens: 250,
                 temperature: 0.7,
                 top_p: 1.0,
