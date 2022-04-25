@@ -10,8 +10,11 @@ use std::env;
 
 use serenity::{
     async_trait,
-    model::{channel::Message, gateway::Ready},
-    prelude::{Client, Context, EventHandler, RwLock, TypeMapKey},
+    model::{
+        channel::Message,
+        gateway::{Gateway, Ready},
+    },
+    prelude::{Client, Context, EventHandler, GatewayIntents, RwLock, TypeMapKey},
 };
 
 trait GodType {
@@ -68,7 +71,24 @@ async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<Kirby>> {
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
+        // Prevent answering itself.
+        let bot_user = ctx.http.get_current_user().await;
+
+        let val = match bot_user {
+            Ok(val) => val.id,
+            Err(_) => serenity::model::id::UserId(0),
+        };
+
+        if val == serenity::model::id::UserId(0) || val == msg.author.id {
+            println!("SHIET {}", val);
+            return;
+        } else {
+            println!("NO shit {}", val);
+        }
+
+        //if msg.author.id == ctx.
         let key = msg.channel_id.0;
+
         let lowercase = msg.content.to_ascii_lowercase();
 
         if lowercase.starts_with(KIRBY_CLEAN) {
@@ -122,6 +142,16 @@ impl EventHandler for Handler {
             }
         }
     }
+
+    async fn ready(&self, context: Context, _: Ready) {
+        use serenity::model::gateway::Activity;
+        use serenity::model::user::OnlineStatus;
+
+        let activity = Activity::playing("God");
+        let status = OnlineStatus::DoNotDisturb;
+
+        context.set_presence(Some(activity), status).await;
+    }
 }
 
 #[tokio::main]
@@ -130,7 +160,11 @@ async fn main() {
     let token_discord =
         env::var("DISCORD_BOT_TOKEN").expect("Expected a token in the environment for discord");
 
-    let mut client = Client::builder(&token_discord)
+    let intents = GatewayIntents::GUILD_MESSAGES
+        | GatewayIntents::DIRECT_MESSAGES
+        | GatewayIntents::MESSAGE_CONTENT;
+
+    let mut client = Client::builder(&token_discord, intents)
         .event_handler(Handler {})
         .await
         .expect("Err creating client");
