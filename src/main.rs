@@ -11,7 +11,7 @@ use std::env;
 use serenity::{
     async_trait,
     model::{
-        channel::Message,
+        channel::{Message, ChannelType},
         gateway::{Gateway, Ready},
     },
     prelude::{Client, Context, EventHandler, GatewayIntents, RwLock, TypeMapKey},
@@ -80,15 +80,10 @@ impl EventHandler for Handler {
         };
 
         if val == serenity::model::id::UserId(0) || val == msg.author.id {
-            println!("SHIET {}", val);
             return;
-        } else {
-            println!("NO shit {}", val);
         }
 
-        //if msg.author.id == ctx.
         let key = msg.channel_id.0;
-
         let lowercase = msg.content.to_ascii_lowercase();
 
         if lowercase.starts_with(KIRBY_CLEAN) {
@@ -119,7 +114,7 @@ impl EventHandler for Handler {
                         .set_prompt_response(&author_name, prompt_slice, &response);
                 }
             }
-        } else if lowercase.contains(KIRBY_ANY) {
+        } else if lowercase.contains(KIRBY_ANY) || msg.is_private() {
             let prompt_slice = &msg.content[..];
             let author_name = msg.author.name.clone();
 
@@ -162,7 +157,8 @@ async fn main() {
 
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
-        | GatewayIntents::MESSAGE_CONTENT;
+        | GatewayIntents::MESSAGE_CONTENT
+        | GatewayIntents::GUILD_INTEGRATIONS;
 
     let mut client = Client::builder(&token_discord, intents)
         .event_handler(Handler {})
