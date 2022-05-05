@@ -174,6 +174,25 @@ impl Kirby {
     pub fn clear(&mut self) {
         self.memory.clear();
     }
+
+    pub fn get_config(&self) -> String {
+        format!(
+            "God config.
+===========
+Context:
+--------
+{context}
+Initial memory:
+---------------
+{memory}
+Current memory:
+---------------
+{current_memory}\n",
+            context = self.memory.context,
+            memory = self.memory.thursdayism,
+            current_memory = self.memory.to_string()
+        )
+    }
 }
 
 impl std::fmt::Debug for Box<AIMemory> {

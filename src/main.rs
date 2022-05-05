@@ -44,8 +44,15 @@ fn get_name<T>(_: T) -> String {
 
 static KIRBY_REQUEST: &str = "kirby god: ";
 static KIRBY_CLEAN: &str = "kirby clean";
+static KIRBY_CONFIG: &str = "kirby config";
+static KIRBY_CONFIG_GET: &str = "kirby config get";
 static KIRBY_PRESENCE: &str = "kirby are you there?";
 static KIRBY_ANY: &str = "kirby";
+
+static KIRBY_CONFIG_STR: &str =
+"Kirby commands
+===============
+kirby config get => Returns current config";
 
 async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<Kirby>> {
     let data = ctx.data.read().await;
@@ -91,6 +98,16 @@ impl EventHandler for Handler {
             kirby.write().await.clear();
         } else if lowercase.starts_with(KIRBY_PRESENCE) {
             if let Err(why) = msg.channel_id.say(&ctx.http, "Yes.").await {
+                println!("Error sending message: {:?}", why);
+            }
+        } else if lowercase.starts_with(KIRBY_CONFIG_GET) {
+            let kirby = get_or_create_bot(&ctx, key).await;
+            let config = kirby.read().await.get_config();
+            if let Err(why) = msg.channel_id.say(&ctx.http, &config).await {
+                println!("Error sending message: {:?}", why);
+            }
+        } else if lowercase.starts_with(KIRBY_CONFIG) {
+            if let Err(why) = msg.channel_id.say(&ctx.http, KIRBY_CONFIG_STR).await {
                 println!("Error sending message: {:?}", why);
             }
         } else if lowercase.starts_with(KIRBY_REQUEST) {
