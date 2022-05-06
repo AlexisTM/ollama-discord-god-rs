@@ -171,13 +171,21 @@ impl Kirby {
         self.memory.set_response(&self.botname, response)
     }
 
+    pub fn set_context(&mut self, context: &str) {
+        self.memory.context = context.to_string();
+    }
+
+    pub fn set_botname(&mut self, name: &str) {
+        self.botname = name.to_string();
+    }
+
     pub fn clear(&mut self) {
         self.memory.clear();
     }
 
     pub fn get_config(&self) -> String {
         format!(
-            "God config.
+            "{botname} config.
 ===========
 Context:
 --------
@@ -188,6 +196,7 @@ Initial memory:
 Current memory:
 ---------------
 {current_memory}\n",
+            botname = self.botname,
             context = self.memory.context,
             memory = self.memory.thursdayism,
             current_memory = self.memory.to_string()
