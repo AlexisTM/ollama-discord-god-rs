@@ -129,6 +129,21 @@ impl AIMemory {
             return format!("{}\n\n{}", self.context, self.recollections);
         }
     }
+
+    pub fn clear_interactions(&mut self) {
+        self.thursdayism.clear();
+    }
+
+    pub fn add_interaction(&mut self, author: &str, prompt: &str, botname: &str, response: &str) {
+        self.thursdayism.push(DiscussionKind::Prompt {
+            author: author.to_string(),
+            prompt: prompt.to_string(),
+        });
+        self.thursdayism.push(DiscussionKind::Response {
+            author: botname.to_string(),
+            prompt: response.to_string(),
+        });
+    }
 }
 
 impl Kirby {
@@ -153,7 +168,7 @@ impl Kirby {
             botname: botname.to_string(),
             brain: Box::new(AI21 {
                 token: token_ai21,
-                stop_sequences: vec!["Kirby: ".to_string(), "\n\n".to_string()],
+                stop_sequences: vec!["Kirby:".to_string(), "\n\n".to_string()],
                 max_tokens: 250,
                 temperature: 0.7,
                 top_p: 1.0,
@@ -181,6 +196,14 @@ impl Kirby {
 
     pub fn clear(&mut self) {
         self.memory.clear();
+    }
+
+    pub fn clear_interactions(&mut self) {
+        self.memory.clear_interactions();
+    }
+
+    pub fn add_interaction(&mut self, author: &str, prompt: &str, response: &str) {
+        self.memory.add_interaction(author, prompt, &self.botname, response);
     }
 
     pub fn get_config(&self) -> String {

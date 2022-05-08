@@ -5,14 +5,16 @@ pub mod kirby;
 use std::{collections::HashMap, sync::Arc};
 
 pub use crate::kirby::Kirby;
+use const_format::formatcp;
 
 use std::env;
 
 use serenity::{
     async_trait,
     model::{
-        channel::{Message, ChannelType},
+        channel::{ChannelType, Message},
         gateway::{Gateway, Ready},
+        interactions::{self, Interaction},
     },
     prelude::{Client, Context, EventHandler, GatewayIntents, RwLock, TypeMapKey},
 };
@@ -42,20 +44,36 @@ fn get_name<T>(_: T) -> String {
     return std::any::type_name::<T>().to_string();
 }
 
-static KIRBY_REQUEST: &str = "kirby god: ";
-static KIRBY_CLEAN: &str = "kirby clean";
-static KIRBY_PRESENCE: &str = "kirby are you there?";
-static KIRBY_ANY: &str = "kirby";
+const KIRBY_REQUEST: &str = "kirby: ";
+const KIRBY_CLEAN: &str = "kirby clean";
+const KIRBY_PRESENCE: &str = "kirby are you there?";
+const KIRBY_ANY: &str = "kirby";
 
+const KIRBY_CONFIG_GET: &str = "kirby config get";
+const KIRBY_CONFIG_SET_CONTEXT: &str = "kirby context set";
+const KIRBY_CONFIG_SET_NAME: &str = "kirby name set";
+const KIRBY_CONFIG_ADD_INTERACTION: &str = "kirby interaction add";
+const KIRBY_CONFIG_ADD_INTERACTION_INFO: &str = "Usage: kirby interaction add
+---
+AlexisTM
+---
+But what is the meaning of Life, Kirby?
+---
+Actually, it is pretty interesting. It is to be gobbed by myself so I can become the better version of you.";
+const KIRBY_CONFIG_CLEAR_INTERACTIONS: &str = "kirby interaction clear\n";
+const KIRBY_CONFIG_SAVE: &str = "kirby save";
+const KIRBY_CONFIG: &str = "kirby config";
 
-static KIRBY_CONFIG_GET: &str = "kirby config get";
-static KIRBY_CONFIG_SET_CONTEXT: &str = "kirby set context";
-static KIRBY_CONFIG_SET_NAME: &str = "kirby set name";
-static KIRBY_CONFIG: &str = "kirby config";
-static KIRBY_CONFIG_STR: &str =
-"Kirby commands
+const KIRBY_CONFIG_STR: &str = formatcp!(
+    "Kirby commands
 ===============
-kirby config get => Returns current config";
+{KIRBY_CONFIG} => This note
+{KIRBY_CONFIG_GET} => Returns current config
+{KIRBY_CONFIG_SET_NAME} => Sets the name of the bot
+{KIRBY_CONFIG_SET_CONTEXT} => Sets the context
+{KIRBY_CONFIG_ADD_INTERACTION} => Adds a default request/repsonse in the initial memory
+{KIRBY_CONFIG_CLEAR_INTERACTIONS} => Removes the initial memorys
+{KIRBY_CONFIG_SAVE} => Saves the current kirby");
 
 async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<Kirby>> {
     let data = ctx.data.read().await;
@@ -125,7 +143,43 @@ impl EventHandler for Handler {
             if let Err(why) = msg.channel_id.say(&ctx.http, feedback).await {
                 println!("Error sending message: {:?}", why);
             }
-        } else if lowercase.starts_with(KIRBY_CONFIG) {
+        } else if lowercase.starts_with(KIRBY_CONFIG_CLEAR_INTERACTIONS) {
+            let kirby = get_or_create_bot(&ctx, key).await;
+            kirby.write().await.clear_interactions();
+            let feedback = format!("All interactions have been removed.");
+            if let Err(why) = msg.channel_id.say(&ctx.http, feedback).await {
+                println!("Error sending message: {:?}", why);
+            }
+        } else if lowercase.starts_with(KIRBY_CONFIG_ADD_INTERACTION) {
+            // TODO: Save to server
+            let interaction = &msg.content[KIRBY_CONFIG_ADD_INTERACTION.len()..];
+            let interactions = interaction.split("\n---\n").collect::<Vec<&str>>();
+            if interactions.len() != 4 {
+                if let Err(why) = msg
+                    .channel_id
+                    .say(&ctx.http, KIRBY_CONFIG_ADD_INTERACTION_INFO)
+                    .await
+                {
+                    println!("Error sending message: {:?}", why);
+                }
+                return;
+            }
+            let kirby = get_or_create_bot(&ctx, key).await;
+            kirby
+                .write()
+                .await
+                .add_interaction(interactions[1], interactions[2], interactions[3]);
+            let feedback = format!("New interaction added.");
+            if let Err(why) = msg.channel_id.say(&ctx.http, feedback).await {
+                println!("Error sending message: {:?}", why);
+            }
+        } else if lowercase.starts_with(KIRBY_CONFIG_SAVE) {
+            // TODO: Permanent save to redis?
+            if let Err(why) = msg.channel_id.say(&ctx.http,
+                    "I wish I could save it to redis. Wait for that, or DIY and make a quick PR. Appreciated ;)").await {
+                println!("Error sending message: {:?}", why);
+            }
+        } else if lowercase == KIRBY_CONFIG {
             if let Err(why) = msg.channel_id.say(&ctx.http, KIRBY_CONFIG_STR).await {
                 println!("Error sending message: {:?}", why);
             }
