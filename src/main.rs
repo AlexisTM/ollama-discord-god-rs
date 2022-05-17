@@ -1,20 +1,35 @@
 pub mod ai21;
 pub mod error;
 pub mod kirby;
+pub mod bot_ui;
 
+use std::time::Duration;
 use std::{collections::HashMap, sync::Arc};
 
 pub use crate::kirby::Kirby;
+use bot_ui::UI;
 use const_format::formatcp;
+use serenity::builder::CreateEmbed;
+use serenity::client::bridge::gateway::ShardRunner;
+use serenity::json::{json, Value};
+use serenity::model::interactions::message_component::{ActionRow, InputText};
+use serenity::utils::Colour;
 
 use std::env;
 
 use serenity::{
     async_trait,
+    builder::{
+        CreateActionRow, CreateButton, CreateInputText, CreateSelectMenu, CreateSelectMenuOption,
+    },
     model::{
         channel::{ChannelType, Message},
         gateway::{Gateway, Ready},
-        interactions::{self, Interaction},
+        interactions::{
+            message_component::{ButtonStyle, InputTextStyle, MessageComponentInteraction},
+            modal::ModalSubmitInteraction,
+            Interaction, InteractionResponseType,
+        },
     },
     prelude::{Client, Context, EventHandler, GatewayIntents, RwLock, TypeMapKey},
 };
@@ -43,6 +58,8 @@ struct Handler {}
 fn get_name<T>(_: T) -> String {
     return std::any::type_name::<T>().to_string();
 }
+
+const TEST: &str = "test";
 
 const KIRBY_REQUEST: &str = "kirby: ";
 const KIRBY_CLEAN: &str = "kirby clean";
@@ -73,7 +90,8 @@ const KIRBY_CONFIG_STR: &str = formatcp!(
 {KIRBY_CONFIG_SET_CONTEXT} => Sets the context
 {KIRBY_CONFIG_ADD_INTERACTION} => Adds a default request/repsonse in the initial memory
 {KIRBY_CONFIG_CLEAR_INTERACTIONS} => Removes the initial memorys
-{KIRBY_CONFIG_SAVE} => Saves the current kirby");
+{KIRBY_CONFIG_SAVE} => Saves the current kirby"
+);
 
 async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<Kirby>> {
     let data = ctx.data.read().await;
@@ -96,6 +114,84 @@ async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<Kirby>> {
     return bot;
 }
 
+async fn configure_name(
+    ctx: &Context,
+    m: &Message,
+    mci: Arc<MessageComponentInteraction>,
+    key: u64,
+) {
+    let data = ctx.data.read().await;
+    let ui = data
+        .get::<UI>()
+        .expect("There should be a nursery here.");
+
+    mci.create_interaction_response(&ctx, |r| {
+        r.kind(InteractionResponseType::Modal)
+            .interaction_response_data(|d| {
+                // d.add_embed(embed)
+                d.custom_id("embed_id")
+                    .set_components(ui.get_change_name())
+                    .title("Change the name");
+                println!("{:?}", d);
+                d
+            })
+    })
+    .await
+    .unwrap();
+
+    let mci = match m
+        .await_component_interaction(&ctx)
+        .timeout(Duration::from_secs(60 * 3))
+        .await
+    {
+        Some(ci) => ci,
+        None => {
+            m.reply(&ctx, "Timed out").await.unwrap();
+            return;
+        }
+    };
+
+    let response = mci.data.custom_id.clone();
+    println!("DATA: {:?}", mci.data);
+}
+
+async fn configure_god_mainmenu(ctx: &Context, msg: &Message, key: u64) {
+    let data = ctx.data.read().await;
+    let ui = data
+        .get::<UI>()
+        .expect("There should be a nursery here.");
+
+    let m = msg
+        .channel_id
+        .send_message(&ctx, |m| {
+            m.content("Please select your configuration")
+            .set_components(ui.get_main_menu())
+            //    .components(|c| c.add_action_row(action_select))
+        })
+        .await
+        .unwrap();
+
+    let mci = match m
+        .await_component_interaction(&ctx)
+        .timeout(Duration::from_secs(60 * 3))
+        .await
+    {
+        Some(ci) => ci,
+        None => {
+            m.reply(&ctx, "Timed out").await.unwrap();
+            return;
+        }
+    };
+
+    let response = mci.data.custom_id.clone();
+
+    match response.as_str() {
+        "change_name" => configure_name(ctx, &m, mci.clone(), key).await,
+        _ => {}
+    }
+    m.delete(&ctx).await.unwrap();
+}
+
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
@@ -113,6 +209,10 @@ impl EventHandler for Handler {
 
         let key = msg.channel_id.0;
         let lowercase = msg.content.to_ascii_lowercase();
+
+        if lowercase == TEST {
+            configure_god_mainmenu(&ctx, &msg, key).await;
+        }
 
         if lowercase.starts_with(KIRBY_CLEAN) {
             let kirby = get_or_create_bot(&ctx, key).await;
@@ -258,6 +358,7 @@ async fn main() {
     {
         let mut data = client.data.write().await;
         data.insert::<KirbyNursery>(RwLock::new(HashMap::default()));
+        data.insert::<UI>(UI::default());
     }
 
     if let Err(why) = client.start().await {

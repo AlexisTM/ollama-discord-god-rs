@@ -11,12 +11,13 @@ reqwest = { version = "0.11", features = ["json"] }
 # Async loops
 tokio = { version = "1", features = ["full"] }
 # Discord
-serenity = { version = "0.11", default-features = false, features = [
+serenity = { version = "0.11.2", default-features = false, features = [
     "builder",
     "client",
     "collector",
     "http",
     "rustls_backend",
+    "model"
 ] }
 # JSON
 serde = { version = "1.0", features = ["derive"] }
