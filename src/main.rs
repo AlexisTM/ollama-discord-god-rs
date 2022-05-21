@@ -1,7 +1,7 @@
 pub mod ai21;
+pub mod bot_ui;
 pub mod error;
 pub mod kirby;
-pub mod bot_ui;
 
 use std::time::Duration;
 use std::{collections::HashMap, sync::Arc};
@@ -9,12 +9,12 @@ use std::{collections::HashMap, sync::Arc};
 pub use crate::kirby::Kirby;
 use bot_ui::UI;
 use const_format::formatcp;
+use serenity::builder::CreateComponents;
 use serenity::builder::CreateEmbed;
 use serenity::client::bridge::gateway::ShardRunner;
 use serenity::json::{json, Value};
-use serenity::model::interactions::message_component::{ActionRow, InputText};
+use serenity::model::interactions::message_component::{ActionRow, ActionRowComponent, InputText};
 use serenity::utils::Colour;
-
 use std::env;
 
 use serenity::{
@@ -114,58 +114,79 @@ async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<Kirby>> {
     return bot;
 }
 
-async fn configure_name(
+async fn request_modal_data(
+    modal: CreateComponents,
+    title: &str,
     ctx: &Context,
-    m: &Message,
     mci: Arc<MessageComponentInteraction>,
-    key: u64,
-) {
-    let data = ctx.data.read().await;
-    let ui = data
-        .get::<UI>()
-        .expect("There should be a nursery here.");
-
+) -> Option<Arc<ModalSubmitInteraction>> {
     mci.create_interaction_response(&ctx, |r| {
         r.kind(InteractionResponseType::Modal)
             .interaction_response_data(|d| {
-                // d.add_embed(embed)
-                d.custom_id("embed_id")
-                    .set_components(ui.get_change_name())
-                    .title("Change the name");
-                println!("{:?}", d);
-                d
+                d.custom_id("modal_data").set_components(modal).title(title)
             })
     })
     .await
     .unwrap();
+    mci.message.await_modal_interaction(&ctx.shard).await
+}
 
-    let mci = match m
-        .await_component_interaction(&ctx)
-        .timeout(Duration::from_secs(60 * 3))
-        .await
-    {
-        Some(ci) => ci,
+async fn configure_name(
+    ctx: &Context,
+    mci: Arc<MessageComponentInteraction>,
+    key: u64,
+) {
+    let data = ctx.data.read().await;
+    let ui = data.get::<UI>().expect("There should be a UI here.");
+
+    let modal_collector =
+        request_modal_data(ui.get_change_name(), "Change god name", ctx, mci.clone()).await;
+
+    let modal = match modal_collector {
+        Some(modal) => modal,
         None => {
-            m.reply(&ctx, "Timed out").await.unwrap();
+            mci.message.reply(&ctx, "Timed out").await.unwrap();
             return;
         }
     };
 
-    let response = mci.data.custom_id.clone();
-    println!("DATA: {:?}", mci.data);
+    modal
+        .create_interaction_response(ctx.http.clone(), |f| {
+            f.kind(InteractionResponseType::UpdateMessage)
+                .interaction_response_data(|d| d.content("Gocha!"))
+        })
+        .await
+        .unwrap();
+
+    match &modal.data.components[0].components[0] {
+        ActionRowComponent::InputText(input_text) => {
+            {
+                let kirby = get_or_create_bot(&ctx, key).await;
+                kirby.write().await.set_botname(&input_text.value);
+            }
+            mci.message
+                .reply(&ctx, format!("I am now named {}", input_text.value))
+                .await
+                .unwrap();
+        }
+        _ => {
+            mci.message
+                .reply(&ctx, "Please do not break my kirby.")
+                .await
+                .unwrap();
+        }
+    }
 }
 
 async fn configure_god_mainmenu(ctx: &Context, msg: &Message, key: u64) {
     let data = ctx.data.read().await;
-    let ui = data
-        .get::<UI>()
-        .expect("There should be a nursery here.");
+    let ui = data.get::<UI>().expect("There should be a UI here.");
 
     let m = msg
         .channel_id
         .send_message(&ctx, |m| {
             m.content("Please select your configuration")
-            .set_components(ui.get_main_menu())
+                .set_components(ui.get_main_menu())
             //    .components(|c| c.add_action_row(action_select))
         })
         .await
@@ -186,7 +207,11 @@ async fn configure_god_mainmenu(ctx: &Context, msg: &Message, key: u64) {
     let response = mci.data.custom_id.clone();
 
     match response.as_str() {
-        "change_name" => configure_name(ctx, &m, mci.clone(), key).await,
+        "change_name" => configure_name(ctx, mci.clone(), key).await,
+        "change_context" => configure_name(ctx, mci.clone(), key).await,
+        "add_interaction" => configure_name(ctx, mci.clone(), key).await,
+        "clear_interactions" => configure_name(ctx, mci.clone(), key).await,
+        "save" => configure_name(ctx, mci.clone(), key).await,
         _ => {}
     }
     m.delete(&ctx).await.unwrap();
