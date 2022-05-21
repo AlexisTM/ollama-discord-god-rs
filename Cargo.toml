@@ -26,3 +26,4 @@ unescape = "0.1.0"
 futures = "0.3.0"
 async-trait = "0.1"
 const_format = "0.2.22"
+redis = { version = "0.21.*", features = ["tokio-native-tls-comp"]}
