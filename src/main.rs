@@ -68,8 +68,23 @@ async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<Kirby>> {
     let has_bot = nursery.read().await.contains_key(&key);
 
     if !has_bot {
+        let client = data
+            .get::<RedisClient>()
+            .expect("There should be a redis client here.");
+
+        let con = client.get_connection_with_timeout(Duration::from_secs(1));
+        let new_god = match con {
+            redis::RedisResult::Err(e) =>  Kirby::new("Kirby"),
+            redis::RedisResult::Ok(mut c) => {
+                let result = c.get::<u64, String>(key);
+                match result {
+                    redis::RedisResult::Ok(val) => Kirby::from_str(&val.as_str()),
+                    redis::RedisResult::Err(e) => Kirby::new("Kirby"),
+                }
+            }
+        };
         let mut write_nursery = nursery.write().await;
-        write_nursery.insert(key, Arc::new(RwLock::new(Kirby::new("Kirby"))));
+        write_nursery.insert(key, Arc::new(RwLock::new(new_god)));
     }
 
     let bot = {
@@ -265,10 +280,12 @@ async fn save(ctx: &Context, mci: Arc<MessageComponentInteraction>, key: u64) {
     match con {
         redis::RedisResult::Err(e) => println!("Failed to connect: {}", e),
         redis::RedisResult::Ok(mut c) => {
-            if c.exists(key.clone()).unwrap() {
-                println!("Key exists: {}", key);
-            } else {
-                println!("Key doesn't exist: {}", key);
+            let kirby = get_or_create_bot(&ctx, key).await;
+            let json = kirby.write().await.export_json();
+            let result = c.set::<u64, String, ()>(key, json.to_string());
+            match result {
+                redis::RedisResult::Ok(()) => println!("Success"),
+                redis::RedisResult::Err(e) => println!("Error: {}", e),
             }
         }
     }

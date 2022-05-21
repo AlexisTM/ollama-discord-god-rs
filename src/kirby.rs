@@ -1,8 +1,12 @@
+use serde_json::json;
+use serde::{Deserialize, Serialize};
+
 use crate::ai21::{Intellect, AI21};
 use std::env;
 use std::fmt;
 
 // By using a tuple, I can implement Display for Vec<DiscussionKind>
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Discussion(pub Vec<DiscussionKind>);
 
 // Context is the "Always there"
@@ -15,7 +19,7 @@ pub struct AIMemory {
     recollections: Discussion,
 }
 
-#[derive(Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub enum DiscussionKind {
     // Splitting them allows to put some different parsing (one extra \n) for responses.
     // Another implementation would have been to use a NewLine type and have only Prompts.
@@ -146,6 +150,13 @@ impl AIMemory {
     }
 }
 
+#[derive(Serialize, Deserialize)]
+struct GodMemoryConfig {
+    pub botname: String,
+    pub context: String,
+    pub thursdayism: Discussion,
+}
+
 impl Kirby {
     pub fn new(botname: &str) -> Kirby {
         let token_ai21 =
@@ -208,6 +219,23 @@ impl Kirby {
 
     pub fn add_interaction(&mut self, author: &str, prompt: &str, response: &str) {
         self.memory.add_interaction(author, prompt, &self.botname, response);
+    }
+
+    pub fn export_json(&self) -> serde_json::Value {
+        let config = GodMemoryConfig {
+            botname: self.botname.clone(),
+            context: self.memory.context.clone(),
+            thursdayism: self.memory.thursdayism.clone(),
+        };
+        json!(config)
+    }
+
+    pub fn from_str(val: &str) -> Self {
+        let config: GodMemoryConfig = serde_json::from_str(val).unwrap();
+        let mut this = Self::new(&config.botname.as_str());
+        this.memory.thursdayism = config.thursdayism;
+        this.memory.context = config.context;
+        this
     }
 
     pub fn get_config(&self) -> String {
