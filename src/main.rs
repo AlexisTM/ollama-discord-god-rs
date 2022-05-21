@@ -35,7 +35,7 @@ use serenity::{
 
 struct RedisClient {}
 impl TypeMapKey for RedisClient {
-    type Value = redis::Client;
+    type Value = Arc<redis::Client>;
 }
 
 trait GodType {
@@ -256,6 +256,22 @@ async fn clear_interactions(ctx: &Context, mci: Arc<MessageComponentInteraction>
 }
 
 async fn save(ctx: &Context, mci: Arc<MessageComponentInteraction>, key: u64) {
+    let data = ctx.data.read().await;
+    let client = data
+        .get::<RedisClient>()
+        .expect("There should be a redis client here.");
+
+    let con = client.get_connection_with_timeout(Duration::from_secs(1));
+    match con {
+        redis::RedisResult::Err(e) => println!("Failed to connect: {}", e),
+        redis::RedisResult::Ok(mut c) => {
+            if c.exists(key.clone()).unwrap() {
+                println!("Key exists: {}", key);
+            } else {
+                println!("Key doesn't exist: {}", key);
+            }
+        }
+    }
     mci.message
         .reply(ctx.http.clone(), "This might be saved at some point.")
         .await
@@ -414,7 +430,7 @@ async fn main() {
         match redis::Client::open("rediss://127.0.0.1/") {
             redis::RedisResult::Ok(client) => {
                 println!("Redis client created");
-                data.insert::<RedisClient>(client);
+                data.insert::<RedisClient>(Arc::new(client));
             }
             redis::RedisResult::Err(error) => {
                 println!("Error connecting to Redis: {}", error.to_string());
