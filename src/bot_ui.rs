@@ -61,13 +61,14 @@ impl UI {
         name_request.label("New god name");
         name_request.placeholder("Kirby");
         name_request.style(InputTextStyle::Short);
+        name_request.max_length(50);
         name_request.custom_id("god_name");
 
-        let mut name_change_ar = CreateActionRow::default();
-        name_change_ar.add_input_text(name_request);
+        let mut ar_name_change = CreateActionRow::default();
+        ar_name_change.add_input_text(name_request);
 
         let mut c = CreateComponents::default();
-        c.add_action_row(name_change_ar);
+        c.add_action_row(ar_name_change);
         c
     }
 
@@ -78,15 +79,17 @@ impl UI {
     fn build_change_context() -> CreateComponents {
         let mut context_request = CreateInputText::default();
         context_request.label("Context:");
-        context_request.placeholder("Kirby is the god of all beings. Yet, he is the most lovely god and answers in a very complete manner.");
+        context_request.placeholder("Kirby is the god of all beings. Yet, he is the most lovely god and answers in a very complete.");
         context_request.style(InputTextStyle::Paragraph);
+        context_request.min_length(3);
+        context_request.max_length(500);
         context_request.custom_id("context");
 
-        let mut name_change_ar = CreateActionRow::default();
-        name_change_ar.add_input_text(context_request);
+        let mut ar_context = CreateActionRow::default();
+        ar_context.add_input_text(context_request);
 
         let mut c = CreateComponents::default();
-        c.add_action_row(name_change_ar);
+        c.add_action_row(ar_context);
         c
     }
 
@@ -99,27 +102,39 @@ impl UI {
         author.label("Author:");
         author.placeholder("AlexisTM");
         author.style(InputTextStyle::Short);
+        author.max_length(50);
+        author.required(true);
         author.custom_id("author");
 
-        let mut request = CreateInputText::default();
-        request.label("Request:");
-        request.placeholder("Who is god?");
-        request.style(InputTextStyle::Paragraph);
-        request.custom_id("request");
+        let mut prompt = CreateInputText::default();
+        prompt.label("Request:");
+        prompt.placeholder("Who is god?");
+        prompt.style(InputTextStyle::Paragraph);
+        prompt.min_length(3);
+        prompt.max_length(500);
+        prompt.required(true);
+        prompt.custom_id("prompt");
 
         let mut answer = CreateInputText::default();
         answer.label("Answer:");
         answer.placeholder("Well, now that you ask, I can tell you. I, Kirby is the great goddess is the god of everybody!");
         answer.style(InputTextStyle::Paragraph);
+        answer.min_length(3);
+        answer.max_length(500);
+        answer.required(true);
         answer.custom_id("answer");
 
-        let mut name_change_ar = CreateActionRow::default();
-        name_change_ar.add_input_text(author);
-        name_change_ar.add_input_text(request);
-        name_change_ar.add_input_text(answer);
+        let mut ar_author = CreateActionRow::default();
+        ar_author.add_input_text(author);
+        let mut ar_prompt = CreateActionRow::default();
+        ar_prompt.add_input_text(prompt);
+        let mut ar_response = CreateActionRow::default();
+        ar_response.add_input_text(answer);
 
         let mut c = CreateComponents::default();
-        c.add_action_row(name_change_ar);
+        c.add_action_row(ar_author);
+        c.add_action_row(ar_prompt);
+        c.add_action_row(ar_response);
         c
     }
 

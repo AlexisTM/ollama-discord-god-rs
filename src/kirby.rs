@@ -194,6 +194,10 @@ impl Kirby {
         self.botname = name.to_string();
     }
 
+    pub fn get_botname(&self) -> String {
+        self.botname.clone()
+    }
+
     pub fn clear(&mut self) {
         self.memory.clear();
     }

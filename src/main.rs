@@ -65,33 +65,8 @@ const KIRBY_REQUEST: &str = "kirby: ";
 const KIRBY_CLEAN: &str = "kirby clean";
 const KIRBY_PRESENCE: &str = "kirby are you there?";
 const KIRBY_ANY: &str = "kirby";
-
-const KIRBY_CONFIG_GET: &str = "kirby config get";
-const KIRBY_CONFIG_SET_CONTEXT: &str = "kirby context set";
-const KIRBY_CONFIG_SET_NAME: &str = "kirby name set";
-const KIRBY_CONFIG_ADD_INTERACTION: &str = "kirby interaction add";
-const KIRBY_CONFIG_ADD_INTERACTION_INFO: &str = "Usage: kirby interaction add
----
-AlexisTM
----
-But what is the meaning of Life, Kirby?
----
-Actually, it is pretty interesting. It is to be gobbed by myself so I can become the better version of you.";
-const KIRBY_CONFIG_CLEAR_INTERACTIONS: &str = "kirby interaction clear\n";
-const KIRBY_CONFIG_SAVE: &str = "kirby save";
-const KIRBY_CONFIG: &str = "kirby config";
-
-const KIRBY_CONFIG_STR: &str = formatcp!(
-    "Kirby commands
-===============
-{KIRBY_CONFIG} => This note
-{KIRBY_CONFIG_GET} => Returns current config
-{KIRBY_CONFIG_SET_NAME} => Sets the name of the bot
-{KIRBY_CONFIG_SET_CONTEXT} => Sets the context
-{KIRBY_CONFIG_ADD_INTERACTION} => Adds a default request/repsonse in the initial memory
-{KIRBY_CONFIG_CLEAR_INTERACTIONS} => Removes the initial memorys
-{KIRBY_CONFIG_SAVE} => Saves the current kirby"
-);
+const KIRBY_CONFIG_SET: &str = "god set";
+const KIRBY_CONFIG_GET: &str = "god get";
 
 async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<Kirby>> {
     let data = ctx.data.read().await;
@@ -131,11 +106,7 @@ async fn request_modal_data(
     mci.message.await_modal_interaction(&ctx.shard).await
 }
 
-async fn configure_name(
-    ctx: &Context,
-    mci: Arc<MessageComponentInteraction>,
-    key: u64,
-) {
+async fn change_name(ctx: &Context, mci: Arc<MessageComponentInteraction>, key: u64) {
     let data = ctx.data.read().await;
     let ui = data.get::<UI>().expect("There should be a UI here.");
 
@@ -178,6 +149,128 @@ async fn configure_name(
     }
 }
 
+async fn change_context(ctx: &Context, mci: Arc<MessageComponentInteraction>, key: u64) {
+    let data = ctx.data.read().await;
+    let ui = data.get::<UI>().expect("There should be a UI here.");
+
+    let modal_collector =
+        request_modal_data(ui.get_change_context(), "Change context", ctx, mci.clone()).await;
+
+    let modal = match modal_collector {
+        Some(modal) => modal,
+        None => {
+            mci.message.reply(&ctx, "Timed out").await.unwrap();
+            return;
+        }
+    };
+
+    modal
+        .create_interaction_response(ctx.http.clone(), |f| {
+            f.kind(InteractionResponseType::UpdateMessage)
+                .interaction_response_data(|d| d.content("Gocha!"))
+        })
+        .await
+        .unwrap();
+
+    match &modal.data.components[0].components[0] {
+        ActionRowComponent::InputText(input_text) => {
+            {
+                let kirby = get_or_create_bot(&ctx, key).await;
+                kirby.write().await.set_context(&input_text.value);
+            }
+            mci.message
+                .reply(&ctx, format!("My new context is {}", input_text.value))
+                .await
+                .unwrap();
+        }
+        _ => {
+            mci.message
+                .reply(&ctx, "Please do not break my kirby.")
+                .await
+                .unwrap();
+        }
+    }
+}
+
+async fn add_interaction(ctx: &Context, mci: Arc<MessageComponentInteraction>, key: u64) {
+    let data = ctx.data.read().await;
+    let ui = data.get::<UI>().expect("There should be a UI here.");
+
+    let modal_collector = request_modal_data(
+        ui.get_add_interaction(),
+        "Add an interaction",
+        ctx,
+        mci.clone(),
+    )
+    .await;
+
+    let modal = match modal_collector {
+        Some(modal) => modal,
+        None => {
+            mci.message.reply(&ctx, "Timed out").await.unwrap();
+            return;
+        }
+    };
+
+    modal
+        .create_interaction_response(ctx.http.clone(), |f| {
+            f.kind(InteractionResponseType::UpdateMessage)
+                .interaction_response_data(|d| d.content("Gocha!"))
+        })
+        .await
+        .unwrap();
+
+    let author = match &modal.data.components[0].components[0] {
+        ActionRowComponent::InputText(input_text) => input_text.value.as_str(),
+        _ => "".as_ref(),
+    };
+    let prompt = match &modal.data.components[1].components[0] {
+        ActionRowComponent::InputText(input_text) => input_text.value.as_str(),
+        _ => "".as_ref(),
+    };
+    let response = match &modal.data.components[2].components[0] {
+        ActionRowComponent::InputText(input_text) => input_text.value.as_str(),
+        _ => "".as_ref(),
+    };
+
+    if author == "" || prompt == "" || response == "" {
+        mci.message
+            .reply(ctx.http.clone(), "One of the inputs is empty.")
+            .await
+            .unwrap();
+    } else {
+        {
+            let kirby = get_or_create_bot(&ctx, key).await;
+            kirby
+                .write()
+                .await
+                .add_interaction(author, prompt, response);
+        }
+        mci.message
+            .reply(ctx.http.clone(), "New default interaction added!")
+            .await
+            .unwrap();
+    }
+}
+
+async fn clear_interactions(ctx: &Context, mci: Arc<MessageComponentInteraction>, key: u64) {
+    {
+        let kirby = get_or_create_bot(&ctx, key).await;
+        kirby.write().await.clear_interactions();
+    }
+    mci.message
+        .reply(ctx.http.clone(), "All interactions have been removed.")
+        .await
+        .unwrap();
+}
+
+async fn save(ctx: &Context, mci: Arc<MessageComponentInteraction>, key: u64) {
+    mci.message
+        .reply(ctx.http.clone(), "This might be saved at some point.")
+        .await
+        .unwrap();
+}
+
 async fn configure_god_mainmenu(ctx: &Context, msg: &Message, key: u64) {
     let data = ctx.data.read().await;
     let ui = data.get::<UI>().expect("There should be a UI here.");
@@ -207,11 +300,11 @@ async fn configure_god_mainmenu(ctx: &Context, msg: &Message, key: u64) {
     let response = mci.data.custom_id.clone();
 
     match response.as_str() {
-        "change_name" => configure_name(ctx, mci.clone(), key).await,
-        "change_context" => configure_name(ctx, mci.clone(), key).await,
-        "add_interaction" => configure_name(ctx, mci.clone(), key).await,
-        "clear_interactions" => configure_name(ctx, mci.clone(), key).await,
-        "save" => configure_name(ctx, mci.clone(), key).await,
+        "change_name" => change_name(ctx, mci.clone(), key).await,
+        "change_context" => change_context(ctx, mci.clone(), key).await,
+        "add_interaction" => add_interaction(ctx, mci.clone(), key).await,
+        "clear_interactions" => clear_interactions(ctx, mci.clone(), key).await,
+        "save" => save(ctx, mci.clone(), key).await,
         _ => {}
     }
     m.delete(&ctx).await.unwrap();
@@ -235,77 +328,19 @@ impl EventHandler for Handler {
         let key = msg.channel_id.0;
         let lowercase = msg.content.to_ascii_lowercase();
 
-        if lowercase == TEST {
-            configure_god_mainmenu(&ctx, &msg, key).await;
-        }
-
-        if lowercase.starts_with(KIRBY_CLEAN) {
+        if lowercase == KIRBY_CLEAN {
             let kirby = get_or_create_bot(&ctx, key).await;
             kirby.write().await.clear();
         } else if lowercase.starts_with(KIRBY_PRESENCE) {
             if let Err(why) = msg.channel_id.say(&ctx.http, "Yes.").await {
                 println!("Error sending message: {:?}", why);
             }
-        } else if lowercase.starts_with(KIRBY_CONFIG_GET) {
+        } else if lowercase == KIRBY_CONFIG_SET {
+            configure_god_mainmenu(&ctx, &msg, key).await;
+        } else if lowercase == KIRBY_CONFIG_GET {
             let kirby = get_or_create_bot(&ctx, key).await;
             let config = kirby.read().await.get_config();
             if let Err(why) = msg.channel_id.say(&ctx.http, &config).await {
-                println!("Error sending message: {:?}", why);
-            }
-        } else if lowercase.starts_with(KIRBY_CONFIG_SET_CONTEXT) {
-            let new_context = &msg.content[KIRBY_CONFIG_SET_CONTEXT.len()..];
-            let kirby = get_or_create_bot(&ctx, key).await;
-            kirby.write().await.set_context(new_context);
-            let feedback = format!("New context:\n----------\n{}", new_context);
-            if let Err(why) = msg.channel_id.say(&ctx.http, feedback).await {
-                println!("Error sending message: {:?}", why);
-            }
-        } else if lowercase.starts_with(KIRBY_CONFIG_SET_NAME) {
-            let name = &msg.content[KIRBY_CONFIG_SET_NAME.len()..];
-            let kirby = get_or_create_bot(&ctx, key).await;
-            kirby.write().await.set_botname(name);
-            let feedback = format!("New name:\n----------\n{}", name);
-            if let Err(why) = msg.channel_id.say(&ctx.http, feedback).await {
-                println!("Error sending message: {:?}", why);
-            }
-        } else if lowercase.starts_with(KIRBY_CONFIG_CLEAR_INTERACTIONS) {
-            let kirby = get_or_create_bot(&ctx, key).await;
-            kirby.write().await.clear_interactions();
-            let feedback = format!("All interactions have been removed.");
-            if let Err(why) = msg.channel_id.say(&ctx.http, feedback).await {
-                println!("Error sending message: {:?}", why);
-            }
-        } else if lowercase.starts_with(KIRBY_CONFIG_ADD_INTERACTION) {
-            // TODO: Save to server
-            let interaction = &msg.content[KIRBY_CONFIG_ADD_INTERACTION.len()..];
-            let interactions = interaction.split("\n---\n").collect::<Vec<&str>>();
-            if interactions.len() != 4 {
-                if let Err(why) = msg
-                    .channel_id
-                    .say(&ctx.http, KIRBY_CONFIG_ADD_INTERACTION_INFO)
-                    .await
-                {
-                    println!("Error sending message: {:?}", why);
-                }
-                return;
-            }
-            let kirby = get_or_create_bot(&ctx, key).await;
-            kirby
-                .write()
-                .await
-                .add_interaction(interactions[1], interactions[2], interactions[3]);
-            let feedback = format!("New interaction added.");
-            if let Err(why) = msg.channel_id.say(&ctx.http, feedback).await {
-                println!("Error sending message: {:?}", why);
-            }
-        } else if lowercase.starts_with(KIRBY_CONFIG_SAVE) {
-            // TODO: Permanent save to redis?
-            if let Err(why) = msg.channel_id.say(&ctx.http,
-                    "I wish I could save it to redis. Wait for that, or DIY and make a quick PR. Appreciated ;)").await {
-                println!("Error sending message: {:?}", why);
-            }
-        } else if lowercase == KIRBY_CONFIG {
-            if let Err(why) = msg.channel_id.say(&ctx.http, KIRBY_CONFIG_STR).await {
                 println!("Error sending message: {:?}", why);
             }
         } else if lowercase.starts_with(KIRBY_REQUEST) {
