@@ -8,26 +8,21 @@ use std::{collections::HashMap, sync::Arc};
 
 use redis;
 use redis::Commands;
-use serenity::prelude::TypeMap;
 
 pub use crate::kirby::Kirby;
 use bot_ui::UI;
 use serenity::builder::CreateComponents;
-use serenity::model::interactions::message_component::{ActionRow, ActionRowComponent, InputText};
-use std::{default, env};
+use serenity::model::interactions::message_component::ActionRowComponent;
+use std::env;
 
 use serenity::{
     async_trait,
-    builder::{
-        CreateActionRow, CreateButton, CreateInputText, CreateSelectMenu, CreateSelectMenuOption,
-    },
     model::{
-        channel::{ChannelType, Message},
-        gateway::{Gateway, Ready},
+        channel::Message,
+        gateway::Ready,
         interactions::{
-            message_component::{ButtonStyle, InputTextStyle, MessageComponentInteraction},
-            modal::ModalSubmitInteraction,
-            Interaction, InteractionResponseType,
+            message_component::MessageComponentInteraction, modal::ModalSubmitInteraction,
+            InteractionResponseType,
         },
     },
     prelude::{Client, Context, EventHandler, GatewayIntents, RwLock, TypeMapKey},
@@ -74,7 +69,7 @@ async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<Kirby>> {
 
         let con = client.get_connection_with_timeout(Duration::from_secs(1));
         let new_god = match con {
-            redis::RedisResult::Err(e) =>  Kirby::new("Kirby"),
+            redis::RedisResult::Err(e) => Kirby::new("Kirby"),
             redis::RedisResult::Ok(mut c) => {
                 let result = c.get::<u64, String>(key);
                 match result {
