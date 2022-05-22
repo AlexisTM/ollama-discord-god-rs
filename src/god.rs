@@ -71,9 +71,9 @@ impl Discussion {
     }
 }
 
-// trait Bot, for Kirby
+// trait Bot, for God
 #[derive(Debug)]
-pub struct Kirby {
+pub struct God {
     botname: String,
     pub brain: Box<dyn Intellect + Sync + Send>,
     pub memory: Box<AIMemory>,
@@ -157,8 +157,8 @@ struct GodMemoryConfig {
     pub thursdayism: Discussion,
 }
 
-impl Kirby {
-    pub fn new(botname: &str) -> Kirby {
+impl God {
+    pub fn new(botname: &str) -> God {
         let token_ai21 =
             env::var("GOD_AI21_TOKEN").expect("Expected a token in the environment for AI21");
 
@@ -169,17 +169,17 @@ impl Kirby {
                     prompt: "Who is god?".to_string()
                 },
                 DiscussionKind::Response{
-                    author: "Kirby".to_string(),
-                    prompt: "Well, now that you ask, I can tell you. I, Kirby is the great goddess is the god of everybody!".to_string()
+                    author: "God".to_string(),
+                    prompt: "Well, now that you ask, I can tell you. I, God is the great goddess is the god of everybody!".to_string()
                 }],
         );
-        let memory = AIMemory::new(String::from("Kirby is the god of all beings. Yet, he is the most lovely god and answers in a very complete manner.\n\n"), initial_prompt);
+        let memory = AIMemory::new(String::from("God is the god of all beings. Yet, he is the most lovely god and answers in a very complete manner.\n\n"), initial_prompt);
 
-        Kirby {
+        God {
             botname: botname.to_string(),
             brain: Box::new(AI21 {
                 token: token_ai21,
-                stop_sequences: vec!["Kirby:".to_string(), "\n\n".to_string()],
+                stop_sequences: vec!["God:".to_string(), "\n\n".to_string()],
                 max_tokens: 250,
                 temperature: 0.7,
                 top_p: 1.0,

@@ -1,7 +1,7 @@
 pub mod ai21;
 pub mod bot_ui;
 pub mod error;
-pub mod kirby;
+pub mod god;
 
 use std::time::Duration;
 use std::{collections::HashMap, sync::Arc};
@@ -9,7 +9,7 @@ use std::{collections::HashMap, sync::Arc};
 use redis;
 use redis::Commands;
 
-pub use crate::kirby::Kirby;
+pub use crate::god::God;
 use bot_ui::UI;
 use serenity::builder::CreateComponents;
 use serenity::model::interactions::message_component::ActionRowComponent;
@@ -36,13 +36,14 @@ impl TypeMapKey for RedisClient {
 trait GodType {
     type God;
 }
-struct KirbyNursery;
+struct GodNursery;
 
-impl TypeMapKey for KirbyNursery {
-    type Value = RwLock<HashMap<u64, Arc<RwLock<Kirby>>>>;
+impl TypeMapKey for GodNursery {
+    type Value = RwLock<HashMap<u64, Arc<RwLock<God>>>>;
 }
 struct Handler {}
 
+#[allow(dead_code)]
 fn get_name<T>(_: T) -> String {
     return std::any::type_name::<T>().to_string();
 }
@@ -54,10 +55,10 @@ const GOD_ANY: &str = "god";
 const GOD_CONFIG_SET: &str = "god set";
 const GOD_CONFIG_GET: &str = "god get";
 
-async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<Kirby>> {
+async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<God>> {
     let data = ctx.data.read().await;
     let nursery = data
-        .get::<KirbyNursery>()
+        .get::<GodNursery>()
         .expect("There should be a nursery here.");
 
     let has_bot = nursery.read().await.contains_key(&key);
@@ -69,12 +70,12 @@ async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<Kirby>> {
 
         let con = client.get_connection_with_timeout(Duration::from_secs(1));
         let new_god = match con {
-            redis::RedisResult::Err(e) => Kirby::new("Kirby"),
+            redis::RedisResult::Err(_error) => God::new("God"),
             redis::RedisResult::Ok(mut c) => {
                 let result = c.get::<u64, String>(key);
                 match result {
-                    redis::RedisResult::Ok(val) => Kirby::from_str(&val.as_str()),
-                    redis::RedisResult::Err(e) => Kirby::new("Kirby"),
+                    redis::RedisResult::Ok(val) => God::from_str(&val.as_str()),
+                    redis::RedisResult::Err(_error) => God::new("God"),
                 }
             }
         };
@@ -133,8 +134,8 @@ async fn change_name(ctx: &Context, mci: Arc<MessageComponentInteraction>, key: 
     match &modal.data.components[0].components[0] {
         ActionRowComponent::InputText(input_text) => {
             {
-                let kirby = get_or_create_bot(ctx, key).await;
-                kirby.write().await.set_botname(&input_text.value);
+                let god = get_or_create_bot(ctx, key).await;
+                god.write().await.set_botname(&input_text.value);
             }
             mci.message
                 .reply(&ctx, format!("I am now named {}", input_text.value))
@@ -143,7 +144,7 @@ async fn change_name(ctx: &Context, mci: Arc<MessageComponentInteraction>, key: 
         }
         _ => {
             mci.message
-                .reply(&ctx, "Please do not break my kirby.")
+                .reply(&ctx, "Please do not break my god.")
                 .await
                 .unwrap();
         }
@@ -176,8 +177,8 @@ async fn change_context(ctx: &Context, mci: Arc<MessageComponentInteraction>, ke
     match &modal.data.components[0].components[0] {
         ActionRowComponent::InputText(input_text) => {
             {
-                let kirby = get_or_create_bot(ctx, key).await;
-                kirby.write().await.set_context(&input_text.value);
+                let god = get_or_create_bot(ctx, key).await;
+                god.write().await.set_context(&input_text.value);
             }
             mci.message
                 .reply(&ctx, format!("My new context is {}", input_text.value))
@@ -186,7 +187,7 @@ async fn change_context(ctx: &Context, mci: Arc<MessageComponentInteraction>, ke
         }
         _ => {
             mci.message
-                .reply(&ctx, "Please do not break my kirby.")
+                .reply(&ctx, "Please do not break my god.")
                 .await
                 .unwrap();
         }
@@ -241,8 +242,8 @@ async fn add_interaction(ctx: &Context, mci: Arc<MessageComponentInteraction>, k
             .unwrap();
     } else {
         {
-            let kirby = get_or_create_bot(ctx, key).await;
-            kirby
+            let god = get_or_create_bot(ctx, key).await;
+            god
                 .write()
                 .await
                 .add_interaction(author, prompt, response);
@@ -256,8 +257,8 @@ async fn add_interaction(ctx: &Context, mci: Arc<MessageComponentInteraction>, k
 
 async fn clear_interactions(ctx: &Context, mci: Arc<MessageComponentInteraction>, key: u64) {
     {
-        let kirby = get_or_create_bot(ctx, key).await;
-        kirby.write().await.clear_interactions();
+        let god = get_or_create_bot(ctx, key).await;
+        god.write().await.clear_interactions();
     }
     mci.message
         .reply(ctx.http.clone(), "All interactions have been removed.")
@@ -275,8 +276,8 @@ async fn save(ctx: &Context, mci: Arc<MessageComponentInteraction>, key: u64) {
     match con {
         redis::RedisResult::Err(e) => println!("Failed to connect: {}", e),
         redis::RedisResult::Ok(mut c) => {
-            let kirby = get_or_create_bot(&ctx, key).await;
-            let json = kirby.write().await.export_json();
+            let god = get_or_create_bot(&ctx, key).await;
+            let json = god.write().await.export_json();
             let result = c.set::<u64, String, ()>(key, json.to_string());
             match result {
                 redis::RedisResult::Ok(()) => println!("Success"),
@@ -348,8 +349,8 @@ impl EventHandler for Handler {
         let lowercase = msg.content.to_ascii_lowercase();
 
         if lowercase == GOD_CLEAN {
-            let kirby = get_or_create_bot(&ctx, key).await;
-            kirby.write().await.clear();
+            let god = get_or_create_bot(&ctx, key).await;
+            god.write().await.clear();
         } else if lowercase.starts_with(GOD_PRESENCE) {
             if let Err(why) = msg.channel_id.say(&ctx.http, "Yes.").await {
                 println!("Error sending message: {:?}", why);
@@ -357,8 +358,8 @@ impl EventHandler for Handler {
         } else if lowercase == GOD_CONFIG_SET {
             configure_god_mainmenu(&ctx, &msg, key).await;
         } else if lowercase == GOD_CONFIG_GET {
-            let kirby = get_or_create_bot(&ctx, key).await;
-            let config = kirby.read().await.get_config();
+            let god = get_or_create_bot(&ctx, key).await;
+            let config = god.read().await.get_config();
             if let Err(why) = msg.channel_id.say(&ctx.http, &config).await {
                 println!("Error sending message: {:?}", why);
             }
@@ -366,18 +367,18 @@ impl EventHandler for Handler {
             let prompt_slice = &msg.content[GOD_REQUEST.len()..];
             let author_name = msg.author.name.clone();
 
-            let kirby = get_or_create_bot(&ctx, key).await;
+            let god = get_or_create_bot(&ctx, key).await;
 
-            let prompt = { kirby.read().await.get_prompt(&author_name, prompt_slice) };
+            let prompt = { god.read().await.get_prompt(&author_name, prompt_slice) };
 
-            let response = { kirby.read().await.brain.request(&prompt).await };
+            let response = { god.read().await.brain.request(&prompt).await };
 
             if !response.is_empty() {
                 if let Err(why) = msg.channel_id.say(&ctx.http, &response).await {
                     println!("Error sending message: {:?}", why);
                 }
                 {
-                    kirby
+                    god
                         .write()
                         .await
                         .set_prompt_response(&author_name, prompt_slice, &response);
@@ -387,18 +388,18 @@ impl EventHandler for Handler {
             let prompt_slice = &msg.content[..];
             let author_name = msg.author.name.clone();
 
-            let kirby = get_or_create_bot(&ctx, key).await;
+            let god = get_or_create_bot(&ctx, key).await;
 
-            let prompt = { kirby.read().await.get_prompt(&author_name, prompt_slice) };
+            let prompt = { god.read().await.get_prompt(&author_name, prompt_slice) };
 
-            let response = { kirby.read().await.brain.request(&prompt).await };
+            let response = { god.read().await.brain.request(&prompt).await };
 
             if !response.is_empty() {
                 if let Err(why) = msg.channel_id.say(&ctx.http, &response).await {
                     println!("Error sending message: {:?}", why);
                 }
                 {
-                    kirby
+                    god
                         .write()
                         .await
                         .set_prompt_response(&author_name, prompt_slice, &response);
@@ -423,7 +424,7 @@ async fn main() {
     // Configure the client with your Discord bot token in the environment.
     let token_discord =
         env::var("DISCORD_BOT_TOKEN").expect("Expected a token in the environment for discord");
-    let redis_uri = env::var("REDIS_URI").unwrap_or("redis://127.0.0.1/".to_string);
+    let redis_uri = env::var("REDIS_URI").unwrap_or("redis://127.0.0.1/".to_string());
 
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
@@ -437,7 +438,7 @@ async fn main() {
 
     {
         let mut data = client.data.write().await;
-        data.insert::<KirbyNursery>(RwLock::new(HashMap::default()));
+        data.insert::<GodNursery>(RwLock::new(HashMap::default()));
         data.insert::<UI>(UI::default());
 
         match redis::Client::open(redis_uri) {

@@ -354,6 +354,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "god-ai"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "const_format",
+ "futures",
+ "redis",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serenity",
+ "tokio",
+ "unescape",
+]
+
+[[package]]
 name = "h2"
 version = "0.3.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -526,22 +542,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "671a26f820db17c2a2750743f1dd03bafd15b98c9f30c7c2628c024c05d73397"
 dependencies = [
  "wasm-bindgen",
-]
-
-[[package]]
-name = "kirby"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "const_format",
- "futures",
- "redis",
- "reqwest",
- "serde",
- "serde_json",
- "serenity",
- "tokio",
- "unescape",
 ]
 
 [[package]]
