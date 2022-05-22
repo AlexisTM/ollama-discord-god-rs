@@ -141,15 +141,11 @@ impl AIMemory {
 
 impl fmt::Display for AIMemory {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.recollections.len() <= 6 {
-            writeln!(
-                f,
-                "{}\n\n---\n\n{}\n\n---\n\n{}",
-                self.context, self.thursdayism, self.recollections
-            )
-        } else {
-            writeln!(f, "{}\n\n---\n\n{}", self.context, self.recollections)
-        }
+        writeln!(
+            f,
+            "{}\n\n---\n\n{}\n\n---\n\n{}",
+            self.context, self.thursdayism, self.recollections
+        )
     }
 }
 
