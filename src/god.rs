@@ -93,7 +93,7 @@ impl AIMemory {
             author: author.to_string(),
             prompt: prompt.to_string(),
         };
-        return format!("{}{}\n{}:", self.to_string(), prompt.to_string(), botname);
+        return format!("{}{}\n{}:", self, prompt, botname);
     }
 
     pub fn set_prompt(&mut self, author: &str, prompt: &str) {
@@ -234,7 +234,7 @@ impl God {
         json!(config)
     }
 
-    pub fn from_str(val: &str) -> Self {
+    pub fn import_json(val: &str) -> Self {
         let config: GodMemoryConfig = serde_json::from_str(val).unwrap();
         let mut this = Self::new(config.botname.as_str());
         this.memory.thursdayism = config.thursdayism;
@@ -258,7 +258,7 @@ Current memory:
             botname = self.botname,
             context = self.memory.context,
             memory = self.memory.thursdayism,
-            current_memory = self.memory.to_string()
+            current_memory = self.memory
         )
     }
 }

@@ -6,7 +6,6 @@ pub mod god;
 use std::time::Duration;
 use std::{collections::HashMap, sync::Arc};
 
-use redis;
 use redis::Commands;
 
 pub use crate::god::God;
@@ -74,7 +73,7 @@ async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<God>> {
             redis::RedisResult::Ok(mut c) => {
                 let result = c.get::<u64, String>(key);
                 match result {
-                    redis::RedisResult::Ok(val) => God::from_str(val.as_str()),
+                    redis::RedisResult::Ok(val) => God::import_json(val.as_str()),
                     redis::RedisResult::Err(_error) => God::new("God"),
                 }
             }
