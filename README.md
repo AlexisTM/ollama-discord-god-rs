@@ -6,21 +6,19 @@ This is a refactoring of https://github.com/AlexisTM/gpt3-discord-bot in rust fo
 Environment keys:
 - AI21_API_KEY
 - DISCORD_BOT_TOKEN
-- DISCORD_APPID
+- REDIS_URI: redis://user:pass@127.0.0.1:6379/
 
 Come and test on Discord!: https://discord.gg/Y8XPcj2Q
 
 Commands
 =============
 
-- `Kirby are you there?`: Replies yes if the server runs
-- `Kirby enable`: Allow Kirby god to randomly jump into conversations (15% chance of reply)
-    - `Kirby disable`: Disable the Kirby mode of the channel
-- `Kirby god: `: Answers as a Kirby god.
-    - Remembers the 5 last prompts & answers
-    - Clean the memory with `Kirby clean`
-- `Marv: ` => Answers as a chatbot that reluctantly answers questions. Not maintained ;)
-
+- `God are you there?`: Replies yes if the server runs
+- `God: `: Answers as a Kirby god.
+- `God get` Gets the current setup of the god
+- `God set` Open the menu to modify the god: Change name, context, interactions and saves it within redis.
+- `God clean`: Cleans the god memory
+- Any sentence with `godname` will be taken in account (Not yet there)
 
 Technical help on how to make a Discord bot:
 ==================
