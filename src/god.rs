@@ -34,7 +34,7 @@ impl fmt::Display for DiscussionKind {
                 writeln!(f, "{}: {}", author, prompt)
             }
             DiscussionKind::Response { author, prompt } => {
-                writeln!(f, "{}: {}\n\n---\n\n", author, prompt)
+                writeln!(f, "{}: {}\n\n---", author, prompt)
             }
         }
     }
@@ -93,7 +93,7 @@ impl AIMemory {
             author: author.to_string(),
             prompt: prompt.to_string(),
         };
-        return format!("{}\n\n---\n\n{}\n{}:", self, prompt, botname);
+        return format!("{}{}{}:", self, prompt, botname);
     }
 
     pub fn set_prompt(&mut self, author: &str, prompt: &str) {
@@ -143,7 +143,7 @@ impl fmt::Display for AIMemory {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(
             f,
-            "{}\n\n---\n\n{}\n\n---\n\n{}",
+            "{}\n\n---\n\n{}{}",
             self.context, self.thursdayism, self.recollections
         )
     }
@@ -172,7 +172,7 @@ impl God {
                     prompt: "Well, now that you ask, I can tell you. I, God is the great goddess is the god of everybody!".to_string()
                 }],
         );
-        let memory = AIMemory::new(String::from("God is the god of all beings. Yet, he is the most lovely god and answers in a very complete manner.\n\n"), initial_prompt);
+        let memory = AIMemory::new(String::from("God is the god of all beings. Yet, he is the most lovely god and answers in a very complete manner."), initial_prompt);
 
         God {
             botname: botname.to_string(),
