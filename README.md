@@ -6,7 +6,7 @@ This is a refactoring of https://github.com/AlexisTM/gpt3-discord-bot in rust fo
 Environment keys:
 - AI21_API_KEY
 - DISCORD_BOT_TOKEN
-- REDIS_URI: redis://user:pass@127.0.0.1:6379/
+- REDIS_URI: redis://user:pass@127.0.0.1:6379/ - For permanent changes
 
 Come and test on Discord!: https://discord.gg/Y8XPcj2Q
 
