@@ -423,8 +423,7 @@ async fn main() {
     // Configure the client with your Discord bot token in the environment.
     let token_discord =
         env::var("DISCORD_BOT_TOKEN").expect("Expected a token in the environment for discord");
-    let redis_uri =
-        env::var("REDIS_URI").unwrap_or("redis://127.0.0.1/".to_string());
+    let redis_uri = env::var("REDIS_URI").unwrap_or("redis://127.0.0.1/".to_string);
 
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES

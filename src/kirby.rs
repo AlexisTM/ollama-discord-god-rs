@@ -1,5 +1,5 @@
-use serde_json::json;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
 use crate::ai21::{Intellect, AI21};
 use std::env;
@@ -218,7 +218,8 @@ impl Kirby {
     }
 
     pub fn add_interaction(&mut self, author: &str, prompt: &str, response: &str) {
-        self.memory.add_interaction(author, prompt, &self.botname, response);
+        self.memory
+            .add_interaction(author, prompt, &self.botname, response);
     }
 
     pub fn export_json(&self) -> serde_json::Value {
