@@ -31,12 +31,12 @@ impl UI {
         add_interactin_btn.custom_id("add_interaction");
 
         let mut clear_interactions_btn = CreateButton::default();
-        clear_interactions_btn.style(ButtonStyle::Primary);
+        clear_interactions_btn.style(ButtonStyle::Danger);
         clear_interactions_btn.label("Clear interactions");
         clear_interactions_btn.custom_id("clear_interactions");
 
         let mut save_btn = CreateButton::default();
-        save_btn.style(ButtonStyle::Primary);
+        save_btn.style(ButtonStyle::Success);
         save_btn.label("Save the god");
         save_btn.custom_id("save");
 
