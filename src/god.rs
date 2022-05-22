@@ -123,17 +123,6 @@ impl AIMemory {
         }
     }
 
-    pub fn to_string(&self) -> String {
-        if self.recollections.len() <= 6 {
-            return format!(
-                "{}\n\n{}{}",
-                self.context, self.thursdayism, self.recollections
-            );
-        } else {
-            return format!("{}\n\n{}", self.context, self.recollections);
-        }
-    }
-
     pub fn clear_interactions(&mut self) {
         self.thursdayism.clear();
     }
@@ -147,6 +136,20 @@ impl AIMemory {
             author: botname.to_string(),
             prompt: response.to_string(),
         });
+    }
+}
+
+impl fmt::Display for AIMemory {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.recollections.len() <= 6 {
+            writeln!(
+                f,
+                "{}\n\n{}{}",
+                self.context, self.thursdayism, self.recollections
+            )
+        } else {
+            writeln!(f, "{}\n\n{}", self.context, self.recollections)
+        }
     }
 }
 
@@ -233,7 +236,7 @@ impl God {
 
     pub fn from_str(val: &str) -> Self {
         let config: GodMemoryConfig = serde_json::from_str(val).unwrap();
-        let mut this = Self::new(&config.botname.as_str());
+        let mut this = Self::new(config.botname.as_str());
         this.memory.thursdayism = config.thursdayism;
         this.memory.context = config.context;
         this

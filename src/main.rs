@@ -74,7 +74,7 @@ async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<God>> {
             redis::RedisResult::Ok(mut c) => {
                 let result = c.get::<u64, String>(key);
                 match result {
-                    redis::RedisResult::Ok(val) => God::from_str(&val.as_str()),
+                    redis::RedisResult::Ok(val) => God::from_str(val.as_str()),
                     redis::RedisResult::Err(_error) => God::new("God"),
                 }
             }
@@ -88,7 +88,7 @@ async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<God>> {
         read_nursery.get(&key).unwrap().clone()
     };
 
-    return bot;
+    bot
 }
 
 async fn request_modal_data(
@@ -224,18 +224,18 @@ async fn add_interaction(ctx: &Context, mci: Arc<MessageComponentInteraction>, k
 
     let author = match &modal.data.components[0].components[0] {
         ActionRowComponent::InputText(input_text) => input_text.value.as_str(),
-        _ => "".as_ref(),
+        _ => "",
     };
     let prompt = match &modal.data.components[1].components[0] {
         ActionRowComponent::InputText(input_text) => input_text.value.as_str(),
-        _ => "".as_ref(),
+        _ => "",
     };
     let response = match &modal.data.components[2].components[0] {
         ActionRowComponent::InputText(input_text) => input_text.value.as_str(),
-        _ => "".as_ref(),
+        _ => "",
     };
 
-    if author == "" || prompt == "" || response == "" {
+    if author.is_empty() || prompt.is_empty() || response.is_empty() {
         mci.message
             .reply(ctx.http.clone(), "One of the inputs is empty.")
             .await
@@ -276,7 +276,7 @@ async fn save(ctx: &Context, mci: Arc<MessageComponentInteraction>, key: u64) {
     match con {
         redis::RedisResult::Err(e) => println!("Failed to connect: {}", e),
         redis::RedisResult::Ok(mut c) => {
-            let god = get_or_create_bot(&ctx, key).await;
+            let god = get_or_create_bot(ctx, key).await;
             let json = god.write().await.export_json();
             let result = c.set::<u64, String, ()>(key, json.to_string());
             match result {
@@ -424,7 +424,7 @@ async fn main() {
     // Configure the client with your Discord bot token in the environment.
     let token_discord =
         env::var("DISCORD_BOT_TOKEN").expect("Expected a token in the environment for discord");
-    let redis_uri = env::var("REDIS_URI").unwrap_or("redis://127.0.0.1/".to_string());
+    let redis_uri = env::var("REDIS_URI").unwrap_or_else(|_| "redis://127.0.0.1/".to_string());
 
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
@@ -447,7 +447,7 @@ async fn main() {
                 data.insert::<RedisClient>(Arc::new(client));
             }
             redis::RedisResult::Err(error) => {
-                println!("Error connecting to Redis: {}", error.to_string());
+                println!("Error connecting to Redis: {}", error);
             }
         }
     }
