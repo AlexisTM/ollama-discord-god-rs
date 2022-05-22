@@ -255,7 +255,9 @@ Current memory:
             botname = self.botname,
             context = self.memory.context,
             memory = self.memory.thursdayism,
-            current_memory = self.memory.get_prompt("Username", "Some question", &self.botname)
+            current_memory = self
+                .memory
+                .get_prompt("Username", "Some question", &self.botname)
         )
     }
 }

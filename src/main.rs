@@ -242,10 +242,7 @@ async fn add_interaction(ctx: &Context, mci: Arc<MessageComponentInteraction>, k
     } else {
         {
             let god = get_or_create_bot(ctx, key).await;
-            god
-                .write()
-                .await
-                .add_interaction(author, prompt, response);
+            god.write().await.add_interaction(author, prompt, response);
         }
         mci.message
             .reply(ctx.http.clone(), "New default interaction added!")
@@ -350,7 +347,14 @@ impl EventHandler for Handler {
         if lowercase == GOD_CLEAN {
             let god = get_or_create_bot(&ctx, key).await;
             god.write().await.clear();
-            if let Err(why) = msg.channel_id.say(&ctx.http, "Oh, right, I just forgot about this whole thing.").await {
+            if let Err(why) = msg
+                .channel_id
+                .say(
+                    &ctx.http,
+                    "Oh, right, I just forgot about this whole thing.",
+                )
+                .await
+            {
                 println!("Error sending message: {:?}", why);
             }
         } else if lowercase.starts_with(GOD_PRESENCE) {
@@ -380,8 +384,7 @@ impl EventHandler for Handler {
                     println!("Error sending message: {:?}", why);
                 }
                 {
-                    god
-                        .write()
+                    god.write()
                         .await
                         .set_prompt_response(&author_name, prompt_slice, &response);
                 }
@@ -401,8 +404,7 @@ impl EventHandler for Handler {
                     println!("Error sending message: {:?}", why);
                 }
                 {
-                    god
-                        .write()
+                    god.write()
                         .await
                         .set_prompt_response(&author_name, prompt_slice, &response);
                 }
