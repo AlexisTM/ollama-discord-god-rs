@@ -34,7 +34,7 @@ impl fmt::Display for DiscussionKind {
                 writeln!(f, "{}: {}", author, prompt)
             }
             DiscussionKind::Response { author, prompt } => {
-                writeln!(f, "{}: {}\n", author, prompt)
+                writeln!(f, "{}: {}\n---\n", author, prompt)
             }
         }
     }
@@ -182,7 +182,7 @@ impl God {
             botname: botname.to_string(),
             brain: Box::new(AI21 {
                 token: token_ai21,
-                stop_sequences: vec!["God:".to_string(), "\n\n".to_string()],
+                stop_sequences: vec!["God:".to_string(), "---".to_string(), "\n\n".to_string()],
                 max_tokens: 250,
                 temperature: 0.7,
                 top_p: 1.0,
