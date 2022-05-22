@@ -34,7 +34,7 @@ impl fmt::Display for DiscussionKind {
                 writeln!(f, "{}: {}", author, prompt)
             }
             DiscussionKind::Response { author, prompt } => {
-                writeln!(f, "{}: {}\n---\n", author, prompt)
+                writeln!(f, "{}: {}\n\n---\n\n", author, prompt)
             }
         }
     }
@@ -93,7 +93,7 @@ impl AIMemory {
             author: author.to_string(),
             prompt: prompt.to_string(),
         };
-        return format!("{}{}\n{}:", self, prompt, botname);
+        return format!("{}\n\n---\n\n{}\n{}:", self, prompt, botname);
     }
 
     pub fn set_prompt(&mut self, author: &str, prompt: &str) {
@@ -144,11 +144,11 @@ impl fmt::Display for AIMemory {
         if self.recollections.len() <= 6 {
             writeln!(
                 f,
-                "{}\n\n{}{}",
+                "{}\n\n---\n\n{}\n\n---\n\n{}",
                 self.context, self.thursdayism, self.recollections
             )
         } else {
-            writeln!(f, "{}\n\n{}", self.context, self.recollections)
+            writeln!(f, "{}\n\n---\n\n{}", self.context, self.recollections)
         }
     }
 }
