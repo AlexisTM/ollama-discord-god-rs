@@ -350,6 +350,9 @@ impl EventHandler for Handler {
         if lowercase == GOD_CLEAN {
             let god = get_or_create_bot(&ctx, key).await;
             god.write().await.clear();
+            if let Err(why) = msg.channel_id.say(&ctx.http, "Oh, right, I just forgot about this whole thing.").await {
+                println!("Error sending message: {:?}", why);
+            }
         } else if lowercase.starts_with(GOD_PRESENCE) {
             if let Err(why) = msg.channel_id.say(&ctx.http, "Yes.").await {
                 println!("Error sending message: {:?}", why);

@@ -125,6 +125,7 @@ impl AIMemory {
 
     pub fn clear_interactions(&mut self) {
         self.thursdayism.clear();
+        self.recollections.clear();
     }
 
     pub fn add_interaction(&mut self, author: &str, prompt: &str, botname: &str, response: &str) {
