@@ -14,7 +14,7 @@ Commands
 =============
 
 - `God are you there?`: Replies yes if the server runs
-- `God: `: Answers as a Kirby god.
+- `God: `: Answers as a god. The `God:` part is not sent to the god.
 - `God get` Gets the current setup of the god
 - `God set` Open the menu to modify the god: Change name, context, interactions and saves it within redis.
 - `God clean`: Cleans the god memory
