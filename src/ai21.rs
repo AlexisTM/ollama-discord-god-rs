@@ -1,4 +1,4 @@
-use crate::error::KirbyError;
+use crate::error::GodError;
 use async_trait::async_trait;
 use serde_json::Value;
 use unescape::unescape;
@@ -25,7 +25,7 @@ impl AI21 {
         stop_sequences: &Vec<String>,
         temperature: f32,
         top_p: f32,
-    ) -> Result<String, KirbyError> {
+    ) -> Result<String, GodError> {
         let url = format!(
             "https://api.ai21.com/studio/v1/{model}/complete",
             model = "j1-jumbo"
