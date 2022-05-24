@@ -19,12 +19,7 @@ pub struct AI21 {
 impl AI21 {
     pub async fn request(
         &self,
-        token_ai21: &str,
         prompt: &str,
-        max_tokens: i32,
-        stop_sequences: &Vec<String>,
-        temperature: f32,
-        top_p: f32,
     ) -> Result<String, GodError> {
         let url = format!(
             "https://api.ai21.com/studio/v1/{model}/complete",
@@ -34,14 +29,14 @@ impl AI21 {
         let body_obj = serde_json::json!({
             "prompt": prompt.to_string(),
             "num_results_str": "1".to_string(),
-            "max_tokens_str": max_tokens.to_string(),
-            "stop_sequences": stop_sequences,
-            "temperature_str": temperature.to_string(),
-            "top_p_str": top_p.to_string(),
+            "max_tokens_str": self.max_tokens.to_string(),
+            "stop_sequences": self.stop_sequences,
+            "temperature_str": self.temperature.to_string(),
+            "top_p_str": self.top_p.to_string(),
             "top_k_return_str": "0".to_string(),
         });
 
-        let bearer = format!("Bearer {}", token_ai21);
+        let bearer = format!("Bearer {}", self.token);
         let client = reqwest::Client::new();
         let response = client
             .post(url)
@@ -72,12 +67,7 @@ impl AI21 {
 impl Intellect for AI21 {
     async fn request(&self, prompt: &str) -> String {
         let result = self.request(
-            self.token.as_str(),
             prompt,
-            self.max_tokens,
-            &self.stop_sequences,
-            self.temperature,
-            self.top_p,
         );
         match result.await {
             Ok(n) => return unescape(&n).unwrap(),
