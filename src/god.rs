@@ -169,7 +169,7 @@ impl God {
                     prompt: "Who is god?".to_string()
                 },
                 DiscussionKind::Response{
-                    author: "God".to_string(),
+                    author: "Kirby".to_string(),
                     prompt: "Well, now that you ask, I can tell you. I, God is the great goddess is the god of everybody!".to_string()
                 }],
         );
@@ -179,7 +179,7 @@ impl God {
             botname: botname.to_string(),
             brain: Box::new(AI21 {
                 token: token_ai21,
-                stop_sequences: vec!["God:".to_string(), "---".to_string(), "\n\n".to_string()],
+                stop_sequences: vec!["Kirby:".to_string(), "---".to_string(), "\n".to_string()],
                 max_tokens: 250,
                 temperature: 0.7,
                 top_p: 1.0,

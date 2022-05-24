@@ -69,12 +69,12 @@ async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<God>> {
 
         let con = client.get_connection_with_timeout(Duration::from_secs(1));
         let new_god = match con {
-            redis::RedisResult::Err(_error) => God::new("God"),
+            redis::RedisResult::Err(_error) => God::new("Kirby"),
             redis::RedisResult::Ok(mut c) => {
                 let result = c.get::<u64, String>(key);
                 match result {
                     redis::RedisResult::Ok(val) => God::import_json(val.as_str()),
-                    redis::RedisResult::Err(_error) => God::new("God"),
+                    redis::RedisResult::Err(_error) => God::new("Kirby"),
                 }
             }
         };
