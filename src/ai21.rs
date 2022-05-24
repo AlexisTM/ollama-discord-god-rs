@@ -28,12 +28,12 @@ impl AI21 {
 
         let body_obj = serde_json::json!({
             "prompt": prompt.to_string(),
-            "num_results_str": "1".to_string(),
-            "max_tokens_str": self.max_tokens.to_string(),
-            "stop_sequences": self.stop_sequences,
-            "temperature_str": self.temperature.to_string(),
-            "top_p_str": self.top_p.to_string(),
-            "top_k_return_str": "0".to_string(),
+            "numResults": 1,
+            "maxTokens": self.max_tokens,
+            "stopSequences": self.stop_sequences,
+            "temperature": self.temperature,
+            "topP": self.top_p,
+            "topKReturn": 0,
         });
 
         let bearer = format!("Bearer {}", self.token);
