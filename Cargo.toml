@@ -28,3 +28,5 @@ async-trait = "0.1"
 const_format = "0.2.22"
 redis = { version = "0.21.*", features = ["tokio-native-tls-comp"] }
 rustube = { version = "0.3.8" }
+lavalink-rs = "0.8.0"
+songbird = "0.2.2"
