@@ -231,12 +231,15 @@ impl God {
         json!(config)
     }
 
-    pub fn import_json(val: &str) -> Self {
-        let config: GodMemoryConfig = serde_json::from_str(val).unwrap();
-        let mut this = Self::new(config.botname.as_str());
-        this.memory.thursdayism = config.thursdayism;
-        this.memory.context = config.context;
-        this
+    pub fn import_json(val: &str) -> Option<Self> {
+        if let Ok(config) = serde_json::from_str::<GodMemoryConfig>(val) {
+            let mut this = Self::new(config.botname.as_str());
+            this.memory.thursdayism = config.thursdayism;
+            this.memory.context = config.context;
+            Some(this)
+        } else {
+            None
+        }
     }
 
     pub fn get_config(&self) -> String {

@@ -3,8 +3,11 @@ pub mod bot_ui;
 pub mod error;
 pub mod god;
 
+use std::env;
+use std::fs;
 use std::time::Duration;
 use std::{collections::HashMap, sync::Arc};
+use once_cell::sync::Lazy;
 
 use redis::Commands;
 
@@ -12,7 +15,6 @@ pub use crate::god::God;
 use bot_ui::UI;
 use serenity::builder::CreateComponents;
 use serenity::model::interactions::message_component::ActionRowComponent;
-use std::env;
 
 use serenity::{
     async_trait,
@@ -54,6 +56,13 @@ const GOD_ANY: &str = "god";
 const GOD_CONFIG_SET: &str = "god set";
 const GOD_CONFIG_GET: &str = "god get";
 
+
+static GOD_LIBRARY: Lazy<RwLock<HashMap<String, God>>> = Lazy::new(|| {
+    let mut m = HashMap::new();
+    m.insert("Kirby".to_string(), God::new("Kirby"));
+    RwLock::new(m)
+});
+
 async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<God>> {
     let data = ctx.data.read().await;
     let nursery = data
@@ -73,7 +82,12 @@ async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<God>> {
             redis::RedisResult::Ok(mut c) => {
                 let result = c.get::<u64, String>(key);
                 match result {
-                    redis::RedisResult::Ok(val) => God::import_json(val.as_str()),
+                    redis::RedisResult::Ok(val) => {
+                        match God::import_json(val.as_str()) {
+                            Some(god) => god,
+                            _ => God::new("Kirby"),
+                        }
+                    }
                     redis::RedisResult::Err(_error) => God::new("Kirby"),
                 }
             }
@@ -429,6 +443,32 @@ async fn main() {
     let token_discord =
         env::var("DISCORD_BOT_TOKEN").expect("Expected a token in the environment for discord");
     let redis_uri = env::var("REDIS_URI").unwrap_or_else(|_| "redis://127.0.0.1/".to_string());
+    let gods_path = env::var("GODS_PATH").unwrap_or_else(|_| "./gods".to_string());
+
+    // Global god library preparation
+    {
+        let mut god_library = GOD_LIBRARY.write().await;
+        let paths = fs::read_dir(gods_path).unwrap();
+        for path in paths {
+            let entry = if let Ok(data) = path { data } else {continue;};
+            let path = entry.path();
+            let should_be_read = if let Ok(data) = entry.metadata() {
+                data.is_file() && path.extension().unwrap_or_default() == std::ffi::OsString::from("json").to_os_string()
+            } else { false };
+
+            if should_be_read {
+                dbg!(entry.path());
+            }
+
+            if let Ok(data) = fs::read_to_string(path) {
+                let new_god_option = God::import_json(&data);
+                if let Some(new_god) = new_god_option {
+                    god_library.insert(new_god.get_botname(), new_god);
+                }
+            }
+        }
+        dbg!(god_library);
+    }
 
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
