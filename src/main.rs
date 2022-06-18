@@ -55,6 +55,7 @@ const GOD_PRESENCE: &str = "god are you there?";
 const GOD_ANY: &str = "god";
 const GOD_CONFIG_SET: &str = "god set";
 const GOD_CONFIG_GET: &str = "god get";
+const MAX_MESSAGE_SIZE: usize = 2000;
 
 const  GOD_DEFAULT: Lazy<god::GodMemoryConfig> = Lazy::new(|| {
     god::GodMemoryConfig::default()
@@ -433,7 +434,18 @@ impl EventHandler for Handler {
         } else if lowercase == GOD_CONFIG_GET {
             let god = get_or_create_bot(&ctx, key).await;
             let config = god.read().await.get_config();
-            if let Err(why) = msg.channel_id.say(&ctx.http, &config).await {
+            let config_size = config.len();
+            let mut config_curr = 0;
+
+            while config_curr + MAX_MESSAGE_SIZE < config_size {
+                let config_next = config_curr + MAX_MESSAGE_SIZE;
+                if let Err(why) = msg.channel_id.say(&ctx.http, &config[config_curr..config_next]).await {
+                    println!("Error sending message: {:?}", why);
+                }
+                config_curr = config_next;
+            }
+
+            if let Err(why) = msg.channel_id.say(&ctx.http, &config[config_curr..config_size]).await {
                 println!("Error sending message: {:?}", why);
             }
         } else if lowercase.starts_with(GOD_REQUEST) {
