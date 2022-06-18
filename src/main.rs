@@ -483,7 +483,12 @@ async fn main() {
     {
         let mut data = client.data.write().await;
         data.insert::<GodNursery>(RwLock::new(HashMap::default()));
-        data.insert::<UI>(UI::default());
+
+        let mut bot_ui = UI::default();
+        let library = GOD_LIBRARY.read().await;
+        let god_library_values = library.values();
+        bot_ui.build_change_config(god_library_values);
+        data.insert::<UI>(bot_ui);
 
         match redis::Client::open(redis_uri) {
             redis::RedisResult::Ok(client) => {

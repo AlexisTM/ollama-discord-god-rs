@@ -1,4 +1,6 @@
-use serenity::builder::{CreateActionRow, CreateButton, CreateComponents, CreateInputText};
+use serenity::builder::{
+    CreateActionRow, CreateButton, CreateComponents, CreateInputText, CreateSelectMenu
+};
 use serenity::model::interactions::message_component::{ButtonStyle, InputTextStyle};
 use serenity::prelude::TypeMapKey;
 
@@ -6,11 +8,15 @@ impl TypeMapKey for UI {
     type Value = UI;
 }
 
+use crate::god::GodMemoryConfig;
+use std::collections::hash_map::Values;
+
 pub struct UI {
     main_menu: CreateComponents,
     change_name: CreateComponents,
     change_context: CreateComponents,
     add_interaction: CreateComponents,
+    change_config: CreateComponents,
 }
 
 impl UI {
@@ -141,6 +147,40 @@ impl UI {
     pub fn get_add_interaction(&self) -> CreateComponents {
         self.add_interaction.clone()
     }
+
+    pub fn build_change_config(&mut self, bots: Values<String, GodMemoryConfig>) {
+        let mut select_menu = CreateSelectMenu::default();
+        select_menu.custom_id("change_config");
+        select_menu.options(|options| {
+            for bot in bots {
+                options.create_option(|option| {
+                    option.label(bot.botname.clone())
+                    .value(bot.botname.clone())
+                    .description(bot.context.clone())
+                });
+            }
+            options
+        });
+
+        let mut context_request = CreateInputText::default();
+        context_request.label("Context:");
+        context_request.placeholder("Kirby is the god of all beings. Yet, he is the most lovely god and answers in a very complete.");
+        context_request.style(InputTextStyle::Paragraph);
+        context_request.min_length(3);
+        context_request.max_length(500);
+        context_request.custom_id("context");
+
+        let mut ar_context = CreateActionRow::default();
+        ar_context.add_input_text(context_request);
+
+        let mut c = CreateComponents::default();
+        c.add_action_row(ar_context);
+        self.change_config = c;
+    }
+
+    pub fn get_change_config(&self) -> CreateComponents {
+        self.change_config.clone()
+    }
 }
 
 impl Default for UI {
@@ -150,6 +190,7 @@ impl Default for UI {
             change_name: Self::build_change_name(),
             change_context: Self::build_change_context(),
             add_interaction: Self::build_add_interaction(),
+            change_config: CreateComponents::default(),
         }
     }
 }
