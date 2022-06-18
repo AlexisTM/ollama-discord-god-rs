@@ -11,19 +11,29 @@ reqwest = { version = "0.11", features = ["json"] }
 # Async loops
 tokio = { version = "1", features = ["full"] }
 # Discord
-serenity = { version = "0.11.2", default-features = false, features = [
-    "builder",
-    "client",
-    "collector",
-    "http",
-    "rustls_backend",
-    "model",
+# serenity = { version = "0.11.2", default-features = false, features = [
+#   "builder",
+#   "client",
+#   "collector",
+#   "http",
+#   "rustls_backend",
+#   "model",
+# ] }
+
+serenity = { git = "https://github.com/AlexisTM/serenity", branch = "v0.11.2_with_modals", default-features = false, features = [
+  "builder",
+  "client",
+  "collector",
+  "http",
+  "rustls_backend",
+  "model",
 ] }
 # JSON
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 unescape = "0.1.0"
-futures = "0.3.0"
+futures = "0.3.*"
 async-trait = "0.1"
-const_format = "0.2.22"
+const_format = "0.2.*"
 redis = { version = "0.21.*", features = ["tokio-native-tls-comp"] }
+once_cell = "1.12.*"

@@ -3,8 +3,11 @@ pub mod bot_ui;
 pub mod error;
 pub mod god;
 
+use std::env;
+use std::fs;
 use std::time::Duration;
 use std::{collections::HashMap, sync::Arc};
+use once_cell::sync::Lazy;
 
 use redis::Commands;
 
@@ -12,7 +15,6 @@ pub use crate::god::God;
 use bot_ui::UI;
 use serenity::builder::CreateComponents;
 use serenity::model::interactions::message_component::ActionRowComponent;
-use std::env;
 
 use serenity::{
     async_trait,
@@ -53,6 +55,15 @@ const GOD_PRESENCE: &str = "god are you there?";
 const GOD_ANY: &str = "god";
 const GOD_CONFIG_SET: &str = "god set";
 const GOD_CONFIG_GET: &str = "god get";
+const MAX_MESSAGE_SIZE: usize = 2000;
+
+const  GOD_DEFAULT: Lazy<god::GodMemoryConfig> = Lazy::new(|| {
+    god::GodMemoryConfig::default()
+});
+static GOD_LIBRARY: Lazy<RwLock<HashMap<String, god::GodMemoryConfig>>> = Lazy::new(|| {
+    RwLock::new(HashMap::<String, god::GodMemoryConfig>::new())
+});
+
 
 async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<God>> {
     let data = ctx.data.read().await;
@@ -69,12 +80,17 @@ async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<God>> {
 
         let con = client.get_connection_with_timeout(Duration::from_secs(1));
         let new_god = match con {
-            redis::RedisResult::Err(_error) => God::new("Kirby"),
+            redis::RedisResult::Err(_error) => God::from_config(&GOD_DEFAULT),
             redis::RedisResult::Ok(mut c) => {
                 let result = c.get::<u64, String>(key);
                 match result {
-                    redis::RedisResult::Ok(val) => God::import_json(val.as_str()),
-                    redis::RedisResult::Err(_error) => God::new("Kirby"),
+                    redis::RedisResult::Ok(val) => {
+                        match God::import_json(val.as_str()) {
+                            Some(god) => god,
+                            _ => God::from_config(&GOD_DEFAULT),
+                        }
+                    }
+                    redis::RedisResult::Err(_error) => God::from_config(&GOD_DEFAULT),
                 }
             }
         };
@@ -138,6 +154,57 @@ async fn change_name(ctx: &Context, mci: Arc<MessageComponentInteraction>, key: 
             }
             mci.message
                 .reply(&ctx, format!("I am now named {}", input_text.value))
+                .await
+                .unwrap();
+        }
+        _ => {
+            mci.message
+                .reply(&ctx, "Please do not break my god.")
+                .await
+                .unwrap();
+        }
+    }
+}
+
+
+async fn load_config(ctx: &Context, mci: Arc<MessageComponentInteraction>, key: u64) {
+    let data = ctx.data.read().await;
+    let ui = data.get::<UI>().expect("There should be a UI here.");
+
+    let modal_collector =
+        request_modal_data(ui.get_load_config(), "Load a bot config", ctx, mci.clone()).await;
+
+    let modal = match modal_collector {
+        Some(modal) => modal,
+        None => {
+            mci.message.reply(&ctx, "Timed out").await.unwrap();
+            return;
+        }
+    };
+
+    modal
+        .create_interaction_response(ctx.http.clone(), |f| {
+            f.kind(InteractionResponseType::UpdateMessage)
+                .interaction_response_data(|d| d.content("Gocha!"))
+        })
+        .await
+        .unwrap();
+
+    match &modal.data.components[0].components[0] {
+        ActionRowComponent::SelectMenu(select_menu) => {
+            {
+                let library = GOD_LIBRARY.read().await;
+                let result = select_menu.values.get(0).unwrap();
+                let god_config = library.get(result);
+                if let Some(config) = god_config {
+                    let god = get_or_create_bot(ctx, key).await;
+                    god.write().await.update_from_config(config);
+                }
+            }
+            let god = get_or_create_bot(ctx, key).await;
+
+            mci.message
+                .reply(&ctx, format!("I am now {}", &god.read().await.get_botname()))
                 .await
                 .unwrap();
         }
@@ -317,6 +384,7 @@ async fn configure_god_mainmenu(ctx: &Context, msg: &Message, key: u64) {
 
     match response.as_str() {
         "change_name" => change_name(ctx, mci.clone(), key).await,
+        "load_config" => load_config(ctx, mci.clone(), key).await,
         "change_context" => change_context(ctx, mci.clone(), key).await,
         "add_interaction" => add_interaction(ctx, mci.clone(), key).await,
         "clear_interactions" => clear_interactions(ctx, mci.clone(), key).await,
@@ -366,7 +434,18 @@ impl EventHandler for Handler {
         } else if lowercase == GOD_CONFIG_GET {
             let god = get_or_create_bot(&ctx, key).await;
             let config = god.read().await.get_config();
-            if let Err(why) = msg.channel_id.say(&ctx.http, &config).await {
+            let config_size = config.len();
+            let mut config_curr = 0;
+
+            while config_curr + MAX_MESSAGE_SIZE < config_size {
+                let config_next = config_curr + MAX_MESSAGE_SIZE;
+                if let Err(why) = msg.channel_id.say(&ctx.http, &config[config_curr..config_next]).await {
+                    println!("Error sending message: {:?}", why);
+                }
+                config_curr = config_next;
+            }
+
+            if let Err(why) = msg.channel_id.say(&ctx.http, &config[config_curr..config_size]).await {
                 println!("Error sending message: {:?}", why);
             }
         } else if lowercase.starts_with(GOD_REQUEST) {
@@ -429,6 +508,28 @@ async fn main() {
     let token_discord =
         env::var("DISCORD_BOT_TOKEN").expect("Expected a token in the environment for discord");
     let redis_uri = env::var("REDIS_URI").unwrap_or_else(|_| "redis://127.0.0.1/".to_string());
+    let gods_path = env::var("GODS_PATH").unwrap_or_else(|_| "./gods".to_string());
+
+    // Global god library preparation
+    {
+        let mut god_library = GOD_LIBRARY.write().await;
+        let paths = fs::read_dir(gods_path).unwrap();
+        for path in paths {
+            let entry = if let Ok(data) = path { data } else {continue;};
+            let path = entry.path();
+            let should_be_read = if let Ok(data) = entry.metadata() {
+                data.is_file() && path.extension().unwrap_or_default() == std::ffi::OsString::from("json").to_os_string()
+            } else { false };
+
+            if should_be_read {
+                if let Ok(data) = fs::read_to_string(path) {
+                    if let Ok(new_config) = serde_json::from_str::<god::GodMemoryConfig>(&data) {
+                        god_library.insert(new_config.botname.clone(), new_config.clone());
+                    }
+                }
+            }
+        }
+    }
 
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
@@ -443,7 +544,12 @@ async fn main() {
     {
         let mut data = client.data.write().await;
         data.insert::<GodNursery>(RwLock::new(HashMap::default()));
-        data.insert::<UI>(UI::default());
+
+        let mut bot_ui = UI::default();
+        let library = GOD_LIBRARY.read().await;
+        let god_library_values = library.values();
+        bot_ui.build_load_config(god_library_values);
+        data.insert::<UI>(bot_ui);
 
         match redis::Client::open(redis_uri) {
             redis::RedisResult::Ok(client) => {

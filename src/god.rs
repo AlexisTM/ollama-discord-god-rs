@@ -2,14 +2,23 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::ai21::{Intellect, AI21};
+use std::clone::Clone;
 use std::env;
 use std::fmt;
 
 // By using a tuple, I can implement Display for Vec<DiscussionKind>
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Discussion(pub Vec<DiscussionKind>);
 
-// Context is the "Always there"
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct GodMemoryConfig {
+    pub botname: String,
+    pub context: String,
+    pub thursdayism: Discussion,
+}
+
+#[derive(Clone)]
 pub struct AIMemory {
     // Always there, on top of the AI prompt, such as: "This is the discussion between xxx and yyy."
     context: String,
@@ -19,7 +28,7 @@ pub struct AIMemory {
     recollections: Discussion,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum DiscussionKind {
     // Splitting them allows to put some different parsing (one extra \n) for responses.
     // Another implementation would have been to use a NewLine type and have only Prompts.
@@ -150,11 +159,50 @@ impl fmt::Display for AIMemory {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-struct GodMemoryConfig {
-    pub botname: String,
-    pub context: String,
-    pub thursdayism: Discussion,
+impl Default for GodMemoryConfig {
+    fn default() -> Self {
+        let initial_prompt: Discussion = Discussion(vec![
+            {
+                DiscussionKind::Prompt {
+                    author: "Alexis".to_string(),
+                    prompt: "Oh! Look there! What is that?".to_string(),
+                }
+            },
+            {
+                DiscussionKind::Response {
+                    author: "Kirby".to_string(),
+                    prompt: "Oh, that is king Dedede! I'm soooo scared!".to_string(),
+                }
+            },
+            {
+                DiscussionKind::Prompt {
+                    author: "Alexis".to_string(),
+                    prompt: "Let's fight this ennemy!".to_string(),
+                }
+            },
+            {
+                DiscussionKind::Response {
+                    author: "Kirby".to_string(),
+                    prompt: "But i have no sword!?!".to_string(),
+                }
+            },
+            {
+                DiscussionKind::Prompt {
+                    author: "Alexis".to_string(),
+                    prompt: "Here, take this minion.".to_string(),
+                }
+            },
+            {
+                DiscussionKind::Response {
+                    author: "Kirby".to_string(),
+                    prompt: "Oof! Thanks for that! I can now fight!".to_string(),
+                }
+            },
+        ]);
+
+        Self { botname: "Kirby".to_string(), context: "Kirby is as one of the most legendary video game characters of all time. In virtually all his appearances, Kirby is depicted as cheerful, innocent and food-loving; however, he becomes fearless, bold and clever in the face of danger.".to_string(),
+        thursdayism: initial_prompt }
+    }
 }
 
 impl God {
@@ -231,11 +279,27 @@ impl God {
         json!(config)
     }
 
-    pub fn import_json(val: &str) -> Self {
-        let config: GodMemoryConfig = serde_json::from_str(val).unwrap();
+    pub fn import_json(val: &str) -> Option<Self> {
+        if let Ok(config) = serde_json::from_str::<GodMemoryConfig>(val) {
+            let mut this = Self::new(config.botname.as_str());
+            this.memory.thursdayism = config.thursdayism;
+            this.memory.context = config.context;
+            Some(this)
+        } else {
+            None
+        }
+    }
+
+    pub fn update_from_config(&mut self, config: &GodMemoryConfig) {
+        self.botname = config.botname.clone();
+        self.memory.thursdayism = config.thursdayism.clone();
+        self.memory.context = config.context.clone();
+    }
+
+    pub fn from_config(config: &GodMemoryConfig) -> Self {
         let mut this = Self::new(config.botname.as_str());
-        this.memory.thursdayism = config.thursdayism;
-        this.memory.context = config.context;
+        this.memory.thursdayism = config.thursdayism.clone();
+        this.memory.context = config.context.clone();
         this
     }
 

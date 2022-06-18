@@ -1,4 +1,6 @@
-use serenity::builder::{CreateActionRow, CreateButton, CreateComponents, CreateInputText};
+use serenity::builder::{
+    CreateActionRow, CreateButton, CreateComponents, CreateInputText, CreateSelectMenu
+};
 use serenity::model::interactions::message_component::{ButtonStyle, InputTextStyle};
 use serenity::prelude::TypeMapKey;
 
@@ -6,15 +8,24 @@ impl TypeMapKey for UI {
     type Value = UI;
 }
 
+use crate::god::GodMemoryConfig;
+use std::collections::hash_map::Values;
+
 pub struct UI {
     main_menu: CreateComponents,
     change_name: CreateComponents,
     change_context: CreateComponents,
     add_interaction: CreateComponents,
+    load_config: CreateComponents,
 }
 
 impl UI {
     fn build_main_menu() -> CreateComponents {
+        let mut load_config_btn = CreateButton::default();
+        load_config_btn.style(ButtonStyle::Primary);
+        load_config_btn.label("Load config");
+        load_config_btn.custom_id("load_config");
+
         let mut change_name_btn = CreateButton::default();
         change_name_btn.style(ButtonStyle::Primary);
         change_name_btn.label("Change name");
@@ -41,14 +52,18 @@ impl UI {
         save_btn.custom_id("save");
 
         let mut action_select = CreateActionRow::default();
+        action_select.add_button(load_config_btn);
         action_select.add_button(change_name_btn);
         action_select.add_button(change_context_btn);
         action_select.add_button(add_interactin_btn);
-        action_select.add_button(clear_interactions_btn);
-        action_select.add_button(save_btn);
+
+        let mut action_select_second = CreateActionRow::default();
+        action_select_second.add_button(clear_interactions_btn);
+        action_select_second.add_button(save_btn);
 
         let mut c = CreateComponents::default();
         c.add_action_row(action_select);
+        c.add_action_row(action_select_second);
         c
     }
 
@@ -141,6 +156,32 @@ impl UI {
     pub fn get_add_interaction(&self) -> CreateComponents {
         self.add_interaction.clone()
     }
+
+    pub fn build_load_config(&mut self, bots: Values<String, GodMemoryConfig>) {
+        let mut select_menu = CreateSelectMenu::default();
+        select_menu.custom_id("load_config");
+        select_menu.options(|options| {
+            for bot in bots {
+                options.create_option(|option| {
+                    option.label(bot.botname.clone())
+                    .value(bot.botname.clone())
+                    .description(bot.context[..100].to_string())
+                });
+            }
+            options
+        });
+
+        let mut ar_context = CreateActionRow::default();
+        ar_context.add_select_menu(select_menu);
+
+        let mut c = CreateComponents::default();
+        c.add_action_row(ar_context);
+        self.load_config = c;
+    }
+
+    pub fn get_load_config(&self) -> CreateComponents {
+        self.load_config.clone()
+    }
 }
 
 impl Default for UI {
@@ -150,6 +191,7 @@ impl Default for UI {
             change_name: Self::build_change_name(),
             change_context: Self::build_change_context(),
             add_interaction: Self::build_add_interaction(),
+            load_config: CreateComponents::default(),
         }
     }
 }
