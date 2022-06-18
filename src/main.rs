@@ -56,12 +56,13 @@ const GOD_ANY: &str = "god";
 const GOD_CONFIG_SET: &str = "god set";
 const GOD_CONFIG_GET: &str = "god get";
 
-
-static GOD_LIBRARY: Lazy<RwLock<HashMap<String, God>>> = Lazy::new(|| {
-    let mut m = HashMap::new();
-    m.insert("Kirby".to_string(), God::new("Kirby"));
-    RwLock::new(m)
+const  GOD_DEFAULT: Lazy<god::GodMemoryConfig> = Lazy::new(|| {
+    god::GodMemoryConfig::default()
 });
+static GOD_LIBRARY: Lazy<RwLock<HashMap<String, god::GodMemoryConfig>>> = Lazy::new(|| {
+    RwLock::new(HashMap::<String, god::GodMemoryConfig>::new())
+});
+
 
 async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<God>> {
     let data = ctx.data.read().await;
@@ -78,17 +79,17 @@ async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<God>> {
 
         let con = client.get_connection_with_timeout(Duration::from_secs(1));
         let new_god = match con {
-            redis::RedisResult::Err(_error) => God::new("Kirby"),
+            redis::RedisResult::Err(_error) => God::from_config(&GOD_DEFAULT),
             redis::RedisResult::Ok(mut c) => {
                 let result = c.get::<u64, String>(key);
                 match result {
                     redis::RedisResult::Ok(val) => {
                         match God::import_json(val.as_str()) {
                             Some(god) => god,
-                            _ => God::new("Kirby"),
+                            _ => God::from_config(&GOD_DEFAULT),
                         }
                     }
-                    redis::RedisResult::Err(_error) => God::new("Kirby"),
+                    redis::RedisResult::Err(_error) => God::from_config(&GOD_DEFAULT),
                 }
             }
         };
@@ -461,9 +462,8 @@ async fn main() {
             }
 
             if let Ok(data) = fs::read_to_string(path) {
-                let new_god_option = God::import_json(&data);
-                if let Some(new_god) = new_god_option {
-                    god_library.insert(new_god.get_botname(), new_god);
+                if let Ok(new_config) = serde_json::from_str::<god::GodMemoryConfig>(&data) {
+                    god_library.insert(new_config.botname.clone(), new_config.clone());
                 }
             }
         }
