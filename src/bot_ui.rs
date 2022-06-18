@@ -16,11 +16,16 @@ pub struct UI {
     change_name: CreateComponents,
     change_context: CreateComponents,
     add_interaction: CreateComponents,
-    change_config: CreateComponents,
+    load_config: CreateComponents,
 }
 
 impl UI {
     fn build_main_menu() -> CreateComponents {
+        let mut load_config_btn = CreateButton::default();
+        load_config_btn.style(ButtonStyle::Primary);
+        load_config_btn.label("Load config");
+        load_config_btn.custom_id("load_config");
+
         let mut change_name_btn = CreateButton::default();
         change_name_btn.style(ButtonStyle::Primary);
         change_name_btn.label("Change name");
@@ -47,14 +52,18 @@ impl UI {
         save_btn.custom_id("save");
 
         let mut action_select = CreateActionRow::default();
+        action_select.add_button(load_config_btn);
         action_select.add_button(change_name_btn);
         action_select.add_button(change_context_btn);
         action_select.add_button(add_interactin_btn);
-        action_select.add_button(clear_interactions_btn);
-        action_select.add_button(save_btn);
+
+        let mut action_select_second = CreateActionRow::default();
+        action_select_second.add_button(clear_interactions_btn);
+        action_select_second.add_button(save_btn);
 
         let mut c = CreateComponents::default();
         c.add_action_row(action_select);
+        c.add_action_row(action_select_second);
         c
     }
 
@@ -148,38 +157,30 @@ impl UI {
         self.add_interaction.clone()
     }
 
-    pub fn build_change_config(&mut self, bots: Values<String, GodMemoryConfig>) {
+    pub fn build_load_config(&mut self, bots: Values<String, GodMemoryConfig>) {
         let mut select_menu = CreateSelectMenu::default();
-        select_menu.custom_id("change_config");
+        select_menu.custom_id("load_config");
         select_menu.options(|options| {
             for bot in bots {
                 options.create_option(|option| {
                     option.label(bot.botname.clone())
                     .value(bot.botname.clone())
-                    .description(bot.context.clone())
+                    .description(bot.context[..100].to_string())
                 });
             }
             options
         });
 
-        let mut context_request = CreateInputText::default();
-        context_request.label("Context:");
-        context_request.placeholder("Kirby is the god of all beings. Yet, he is the most lovely god and answers in a very complete.");
-        context_request.style(InputTextStyle::Paragraph);
-        context_request.min_length(3);
-        context_request.max_length(500);
-        context_request.custom_id("context");
-
         let mut ar_context = CreateActionRow::default();
-        ar_context.add_input_text(context_request);
+        ar_context.add_select_menu(select_menu);
 
         let mut c = CreateComponents::default();
         c.add_action_row(ar_context);
-        self.change_config = c;
+        self.load_config = c;
     }
 
-    pub fn get_change_config(&self) -> CreateComponents {
-        self.change_config.clone()
+    pub fn get_load_config(&self) -> CreateComponents {
+        self.load_config.clone()
     }
 }
 
@@ -190,7 +191,7 @@ impl Default for UI {
             change_name: Self::build_change_name(),
             change_context: Self::build_change_context(),
             add_interaction: Self::build_add_interaction(),
-            change_config: CreateComponents::default(),
+            load_config: CreateComponents::default(),
         }
     }
 }

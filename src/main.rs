@@ -165,6 +165,57 @@ async fn change_name(ctx: &Context, mci: Arc<MessageComponentInteraction>, key: 
     }
 }
 
+
+async fn load_config(ctx: &Context, mci: Arc<MessageComponentInteraction>, key: u64) {
+    let data = ctx.data.read().await;
+    let ui = data.get::<UI>().expect("There should be a UI here.");
+
+    let modal_collector =
+        request_modal_data(ui.get_load_config(), "Load a bot config", ctx, mci.clone()).await;
+
+    let modal = match modal_collector {
+        Some(modal) => modal,
+        None => {
+            mci.message.reply(&ctx, "Timed out").await.unwrap();
+            return;
+        }
+    };
+
+    modal
+        .create_interaction_response(ctx.http.clone(), |f| {
+            f.kind(InteractionResponseType::UpdateMessage)
+                .interaction_response_data(|d| d.content("Gocha!"))
+        })
+        .await
+        .unwrap();
+
+    match &modal.data.components[0].components[0] {
+        ActionRowComponent::SelectMenu(select_menu) => {
+            {
+                let library = GOD_LIBRARY.read().await;
+                let result = select_menu.values.get(0).unwrap();
+                let god_config = library.get(result);
+                if let Some(config) = god_config {
+                    let god = get_or_create_bot(ctx, key).await;
+                    god.write().await.update_from_config(config);
+                }
+            }
+            let god = get_or_create_bot(ctx, key).await;
+
+            mci.message
+                .reply(&ctx, format!("I am now {}", &god.read().await.get_botname()))
+                .await
+                .unwrap();
+        }
+        _ => {
+            mci.message
+                .reply(&ctx, "Please do not break my god.")
+                .await
+                .unwrap();
+        }
+    }
+}
+
 async fn change_context(ctx: &Context, mci: Arc<MessageComponentInteraction>, key: u64) {
     let data = ctx.data.read().await;
     let ui = data.get::<UI>().expect("There should be a UI here.");
@@ -332,6 +383,7 @@ async fn configure_god_mainmenu(ctx: &Context, msg: &Message, key: u64) {
 
     match response.as_str() {
         "change_name" => change_name(ctx, mci.clone(), key).await,
+        "load_config" => load_config(ctx, mci.clone(), key).await,
         "change_context" => change_context(ctx, mci.clone(), key).await,
         "add_interaction" => add_interaction(ctx, mci.clone(), key).await,
         "clear_interactions" => clear_interactions(ctx, mci.clone(), key).await,
@@ -458,16 +510,13 @@ async fn main() {
             } else { false };
 
             if should_be_read {
-                dbg!(entry.path());
-            }
-
-            if let Ok(data) = fs::read_to_string(path) {
-                if let Ok(new_config) = serde_json::from_str::<god::GodMemoryConfig>(&data) {
-                    god_library.insert(new_config.botname.clone(), new_config.clone());
+                if let Ok(data) = fs::read_to_string(path) {
+                    if let Ok(new_config) = serde_json::from_str::<god::GodMemoryConfig>(&data) {
+                        god_library.insert(new_config.botname.clone(), new_config.clone());
+                    }
                 }
             }
         }
-        dbg!(god_library);
     }
 
     let intents = GatewayIntents::GUILD_MESSAGES
@@ -487,7 +536,7 @@ async fn main() {
         let mut bot_ui = UI::default();
         let library = GOD_LIBRARY.read().await;
         let god_library_values = library.values();
-        bot_ui.build_change_config(god_library_values);
+        bot_ui.build_load_config(god_library_values);
         data.insert::<UI>(bot_ui);
 
         match redis::Client::open(redis_uri) {

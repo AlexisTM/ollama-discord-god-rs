@@ -290,6 +290,12 @@ impl God {
         }
     }
 
+    pub fn update_from_config(&mut self, config: &GodMemoryConfig) {
+        self.botname = config.botname.clone();
+        self.memory.thursdayism = config.thursdayism.clone();
+        self.memory.context = config.context.clone();
+    }
+
     pub fn from_config(config: &GodMemoryConfig) -> Self {
         let mut this = Self::new(config.botname.as_str());
         this.memory.thursdayism = config.thursdayism.clone();
