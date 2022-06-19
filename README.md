@@ -48,4 +48,4 @@ Clicking on the buttons creates a modal for easy configuration
 
 `god get` shows the current god configuration
 
-![The output of the god get command, showing the bot name, context, available interactions and memory used for generation](/doc/god_name_change.png)
+![The output of the god get command, showing the bot name, context, available interactions and memory used for generation](/doc/god_get.png)
