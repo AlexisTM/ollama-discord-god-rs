@@ -19,7 +19,7 @@ tokio = { version = "1", features = ["full"] }
 #   "rustls_backend",
 #   "model",
 # ] }
-
+# Serenity doesn't support select menus in modals (this one line changes allows it)
 serenity = { git = "https://github.com/AlexisTM/serenity", branch = "v0.11.2_with_modals", default-features = false, features = [
   "builder",
   "client",
