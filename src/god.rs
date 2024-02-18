@@ -2,11 +2,14 @@ use ollama_rs::generation::chat::MessageRole;
 use ollama_rs::generation::options::GenerationOptions;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use serenity::prelude::{RwLock, TypeMapKey};
 
 use crate::ollama::OllamaAI;
 use ollama_rs::generation::chat::ChatMessage;
 use std::clone::Clone;
+use std::collections::HashMap;
 use std::fmt;
+use std::sync::Arc;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum DiscussionKind {
@@ -29,6 +32,11 @@ impl fmt::Display for DiscussionKind {
     }
 }
 
+pub struct GodNursery;
+impl TypeMapKey for GodNursery {
+    type Value = RwLock<HashMap<u64, Arc<RwLock<God>>>>;
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GodConfig {
     // We were created last thursday, this is the discussion the bot is born with.
@@ -37,6 +45,10 @@ pub struct GodConfig {
     pub options: GenerationOptions,
     // We were created last thursday, this is the discussion the bot is born with.
     pub thursdayism: Vec<ChatMessage>,
+}
+
+impl TypeMapKey for GodConfig {
+    type Value = GodConfig;
 }
 
 impl Default for GodConfig {
@@ -95,77 +107,6 @@ pub struct God {
     recollections: Vec<ChatMessage>,
 }
 
-/*
-impl AIMemory {
-    pub fn new(context: String, thursdayism: Vec<ChatMessage>) -> AIMemory {
-        AIMemory {
-            thursdayism,
-            recollections: Vec::new(),
-        }
-    }
-
-    pub fn get_prompt(&self, author: &str, prompt: &str, botname: &str) -> String {
-        let prompt = DiscussionKind::Prompt {
-            author: author.to_string(),
-            prompt: prompt.to_string(),
-        };
-        return format!("{}{}{}:", self, prompt, botname);
-    }
-
-    pub fn set_prompt(&mut self, author: &str, prompt: &str) {
-        self.recollections.push(DiscussionKind::Prompt {
-            author: author.to_string(),
-            prompt: prompt.to_string(),
-        });
-    }
-
-    pub fn set_response(&mut self, author: &str, prompt: &str) {
-        self.recollections.push(DiscussionKind::Response {
-            author: author.to_string(),
-            prompt: prompt.to_string(),
-        });
-        self.clean();
-    }
-
-    pub fn clear(&mut self) {
-        self.recollections.clear();
-    }
-
-    pub fn clean(&mut self) {
-        if self.recollections.len() > 12 {
-            self.recollections.0 = self.recollections.0
-                [self.recollections.len() - 12..self.recollections.len()]
-                .to_vec();
-        }
-    }
-
-    pub fn clear_interactions(&mut self) {
-        self.thursdayism.clear();
-        self.recollections.clear();
-    }
-
-    pub fn add_interaction(&mut self, author: &str, prompt: &str, botname: &str, response: &str) {
-        self.thursdayism.push(DiscussionKind::Prompt {
-            author: author.to_string(),
-            prompt: prompt.to_string(),
-        });
-        self.thursdayism.push(DiscussionKind::Response {
-            author: botname.to_string(),
-            prompt: response.to_string(),
-        });
-    }
-}
-
-impl fmt::Display for AIMemory {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(
-            f,
-            "{}\n\n---\n\n{}{}",
-            self.context, self.thursdayism, self.recollections
-        )
-    }
-}
-*/
 impl Default for God {
     fn default() -> Self {
         let config = GodConfig::default();

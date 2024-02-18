@@ -1,39 +1,23 @@
-pub mod error;
+use clap::Parser;
+
 pub mod god;
 pub mod ollama;
 
-use god::GodConfig;
-use once_cell::sync::Lazy;
-use serenity::all::ComponentInteraction;
+use god::{GodConfig, GodNursery};
+
 use serenity::gateway::ActivityData;
 use std::env;
 use std::fs;
-use std::time::Duration;
 use std::{collections::HashMap, sync::Arc};
-
-use redis::Commands;
 
 pub use crate::god::God;
 
 use serenity::{
     async_trait,
     model::{channel::Message, gateway::Ready},
-    prelude::{Client, Context, EventHandler, GatewayIntents, RwLock, TypeMapKey},
+    prelude::{Client, Context, EventHandler, GatewayIntents, RwLock},
 };
 
-struct RedisClient {}
-impl TypeMapKey for RedisClient {
-    type Value = Arc<redis::Client>;
-}
-
-trait GodType {
-    type God;
-}
-struct GodNursery;
-
-impl TypeMapKey for GodNursery {
-    type Value = RwLock<HashMap<u64, Arc<RwLock<God>>>>;
-}
 struct Handler {}
 
 #[allow(dead_code)]
@@ -41,17 +25,10 @@ fn get_name<T>(_: T) -> String {
     return std::any::type_name::<T>().to_string();
 }
 
-const GOD_REQUEST: &str = "god: ";
 const GOD_CLEAN: &str = "god clean";
-const GOD_PRESENCE: &str = "god are you there?";
-const GOD_ANY: &str = "god";
-const GOD_CONFIG_SET: &str = "god set";
 const GOD_CONFIG_GET: &str = "god get";
+const GOD_PRESENCE: &str = "god are you there?";
 const MAX_MESSAGE_SIZE: usize = 8096;
-
-const GOD_DEFAULT: Lazy<god::GodConfig> = Lazy::new(|| god::GodConfig::default());
-static GOD_LIBRARY: Lazy<RwLock<HashMap<String, god::GodConfig>>> =
-    Lazy::new(|| RwLock::new(HashMap::<String, god::GodConfig>::new()));
 
 async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<God>> {
     //ComponentInteraction
@@ -61,27 +38,14 @@ async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<God>> {
         .get::<GodNursery>()
         .expect("There should be a nursery here.");
 
+    let default_god = data
+        .get::<GodConfig>()
+        .expect("There should be a default config in the context.");
+
     let has_bot = nursery.read().await.contains_key(&key);
 
     if !has_bot {
-        let client = data
-            .get::<RedisClient>()
-            .expect("There should be a redis client here.");
-
-        let con = client.get_connection_with_timeout(Duration::from_secs(1));
-        let new_god = match con {
-            redis::RedisResult::Err(_error) => God::from_config(GOD_DEFAULT.clone()),
-            redis::RedisResult::Ok(mut c) => {
-                let result = c.get::<u64, String>(key);
-                match result {
-                    redis::RedisResult::Ok(val) => match God::import_json(val.as_str()) {
-                        Some(god) => god,
-                        _ => God::from_config(GOD_DEFAULT.clone()),
-                    },
-                    redis::RedisResult::Err(_error) => God::from_config(GOD_DEFAULT.clone()),
-                }
-            }
-        };
+        let new_god = God::from_config(default_god.clone());
         let mut write_nursery = nursery.write().await;
         write_nursery.insert(key, Arc::new(RwLock::new(new_god)));
     }
@@ -129,11 +93,6 @@ impl EventHandler for Handler {
             if let Err(why) = msg.channel_id.say(&ctx.http, "Yes.").await {
                 println!("Error sending message: {:?}", why);
             }
-        } else if lowercase == GOD_CONFIG_SET {
-            if let Err(why) = msg.channel_id.say(&ctx.http, "This is under construction.").await {
-                println!("Error sending message: {:?}", why);
-            }
-            // configure_god_mainmenu(&ctx, &msg, key).await;
         } else if lowercase == GOD_CONFIG_GET {
             let god = get_or_create_bot(&ctx, key.into()).await;
             let config = god.read().await.get_config();
@@ -159,48 +118,6 @@ impl EventHandler for Handler {
             {
                 println!("Error sending message: {:?}", why);
             }
-        } else if lowercase.starts_with(GOD_REQUEST) {
-            let prompt_slice = &msg.content[GOD_REQUEST.len()..];
-            let author_name = msg.author.name.clone();
-            let god = get_or_create_bot(&ctx, key.into()).await;
-
-            let prompt = { god.read().await.get_prompt(&author_name, prompt_slice) };
-
-            let response = { god.read().await.brain.request(&prompt).await };
-            if let Some(response) = response {
-                if let Err(why) = msg.channel_id.say(&ctx.http, &response.content).await {
-                    println!("Error sending message: {:?}", why);
-                }
-                {
-                    god.write().await.set_prompt_response(
-                        &author_name,
-                        prompt_slice,
-                        &response.content,
-                    );
-                }
-            }
-        } else if lowercase.contains(GOD_ANY) || msg.is_private() {
-            let prompt_slice = &msg.content[..];
-            let author_name = msg.author.name.clone();
-
-            let god = get_or_create_bot(&ctx, key.into()).await;
-
-            let prompt = { god.read().await.get_prompt(&author_name, prompt_slice) };
-
-            let response = { god.read().await.brain.request(&prompt).await };
-
-            if let Some(response) = response {
-                if let Err(why) = msg.channel_id.say(&ctx.http, &response.content).await {
-                    println!("Error sending message: {:?}", why);
-                }
-                {
-                    god.write().await.set_prompt_response(
-                        &author_name,
-                        prompt_slice,
-                        &response.content,
-                    );
-                }
-            }
         }
     }
 
@@ -212,42 +129,31 @@ impl EventHandler for Handler {
     }
 }
 
+#[derive(Parser)]
+struct Cli {
+    pub god: std::path::PathBuf,
+}
+
 #[tokio::main]
 async fn main() {
     // Configure the client with your Discord bot token in the environment.
     let token_discord =
         env::var("DISCORD_BOT_TOKEN").expect("Expected a DISCORD_BOT_TOKEN in the environment");
-    let redis_uri = env::var("REDIS_URI").unwrap_or_else(|_| "redis://127.0.0.1/".to_string());
-    let gods_path = env::var("GODS_PATH").unwrap_or_else(|_| "./gods".to_string());
 
-    // Global god library preparation
-    {
-        let mut god_library = GOD_LIBRARY.write().await;
-        let paths = fs::read_dir(gods_path).unwrap();
-        for path in paths {
-            let entry = if let Ok(data) = path {
-                data
-            } else {
-                continue;
-            };
-            let path = entry.path();
-            let should_be_read = if let Ok(data) = entry.metadata() {
-                data.is_file()
-                    && path.extension().unwrap_or_default()
-                        == std::ffi::OsString::from("json").to_os_string()
-            } else {
-                false
-            };
+    let args = Cli::parse();
 
-            if should_be_read {
-                if let Ok(data) = fs::read_to_string(path) {
-                    if let Ok(new_config) = serde_json::from_str::<GodConfig>(&data) {
-                        god_library.insert(new_config.botname.clone(), new_config.clone());
-                    }
-                }
-            }
+    println!("Reading: {:?}", args.god);
+
+    let god_data: String = fs::read_to_string(&args.god)
+        .expect(format!("The god {:?} file must be readable.", &args.god).as_str());
+    let config = match serde_json::from_str::<GodConfig>(&god_data) {
+        Ok(config) => Some(config),
+        Err(err) => {
+            println!("Parsing failed: {err}");
+            None
         }
     }
+    .expect("The god config should be valid.");
 
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
@@ -261,26 +167,8 @@ async fn main() {
 
     {
         let mut data = client.data.write().await;
+        data.insert::<GodConfig>(config);
         data.insert::<GodNursery>(RwLock::new(HashMap::default()));
-
-        let library = GOD_LIBRARY.read().await;
-        let god_library_values = library.values();
-
-        /*
-            let mut bot_ui = UI::default();
-            bot_ui.build_load_config(god_library_values);
-            data.insert::<UI>(bot_ui);
-        */
-
-        match redis::Client::open(redis_uri) {
-            redis::RedisResult::Ok(client) => {
-                println!("Redis client created");
-                data.insert::<RedisClient>(Arc::new(client));
-            }
-            redis::RedisResult::Err(error) => {
-                println!("Error connecting to Redis: {}", error);
-            }
-        }
     }
 
     if let Err(why) = client.start().await {

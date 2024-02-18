@@ -4,10 +4,7 @@ OpenAI Discord bot
 This is a refactoring of https://github.com/AlexisTM/gpt3-discord-bot in rust for fun purpose.
 
 Environment keys:
-- AI21_API_KEY: AI21 Token, free to get from https://www.ai21.com/studio
 - DISCORD_BOT_TOKEN: Discord token to allow the bot to connect, get it from https://discord.com/developers/applications
-- GODS_PATH: The paths to the god configurations, to be selected with `god set`
-- REDIS_URI: redis://user:pass@127.0.0.1:6379/ by default, this allows for permanent changes accross reboots of the bot.
 
 Come and test on Discord!: https://discord.gg/Y8XPcj2Q
 
@@ -17,7 +14,6 @@ Commands
 - `God are you there?`: Replies yes if the server runs
 - `God: `: Answers as a god. The `God:` part is not sent to the god.
 - `God get` Gets the current setup of the god
-- `God set` Open the menu to modify the god: Change name, context, interactions and saves it within redis.
 - `God clean`: Cleans the god memory
 - Any sentence with `godname` will be taken in account (Not yet there)
 
