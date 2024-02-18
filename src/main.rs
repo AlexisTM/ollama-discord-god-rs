@@ -25,6 +25,7 @@ fn get_name<T>(_: T) -> String {
     return std::any::type_name::<T>().to_string();
 }
 
+const GOD_REQUEST: &str = "god:";
 const GOD_CLEAN: &str = "god clean";
 const GOD_CONFIG_GET: &str = "god get";
 const GOD_PRESENCE: &str = "god are you there?";
@@ -117,6 +118,30 @@ impl EventHandler for Handler {
                 .await
             {
                 println!("Error sending message: {:?}", why);
+            }
+        } else if lowercase.starts_with(GOD_REQUEST) || msg.is_private() {
+            let prompt_slice = if msg.is_private() {
+                &msg.content[..]
+            } else {
+                &msg.content[GOD_REQUEST.len()..]
+            };
+            let author_name = msg.author.name.clone();
+            let god = get_or_create_bot(&ctx, key.into()).await;
+
+            let prompt = { god.read().await.get_prompt(&author_name, prompt_slice) };
+
+            let response = { god.read().await.brain.request(&prompt).await };
+            if let Some(response) = response {
+                if let Err(why) = msg.channel_id.say(&ctx.http, &response.content).await {
+                    println!("Error sending message: {:?}", why);
+                }
+                {
+                    god.write().await.set_prompt_response(
+                        &author_name,
+                        prompt_slice,
+                        &response.content,
+                    );
+                }
             }
         }
     }
