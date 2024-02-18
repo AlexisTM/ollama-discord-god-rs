@@ -1,32 +1,12 @@
+use ollama_rs::generation::chat::MessageRole;
+use ollama_rs::generation::options::GenerationOptions;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::ai21::{Intellect, AI21};
+use crate::ollama::OllamaAI;
+use ollama_rs::generation::chat::ChatMessage;
 use std::clone::Clone;
-use std::env;
 use std::fmt;
-
-// By using a tuple, I can implement Display for Vec<DiscussionKind>
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Discussion(pub Vec<DiscussionKind>);
-
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct GodMemoryConfig {
-    pub botname: String,
-    pub context: String,
-    pub thursdayism: Discussion,
-}
-
-#[derive(Clone)]
-pub struct AIMemory {
-    // Always there, on top of the AI prompt, such as: "This is the discussion between xxx and yyy."
-    context: String,
-    // We were created last thursday, this is the discussion the bot is born with.
-    thursdayism: Discussion,
-    // The actual live memory of the bot.
-    recollections: Discussion,
-}
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum DiscussionKind {
@@ -49,51 +29,78 @@ impl fmt::Display for DiscussionKind {
     }
 }
 
-impl fmt::Display for Discussion {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for val in &self.0[0..self.0.len()] {
-            write!(f, "{}", val)?
-        }
-        Ok(())
-    }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GodConfig {
+    // We were created last thursday, this is the discussion the bot is born with.
+    pub model: String,
+    pub botname: String,
+    pub options: GenerationOptions,
+    // We were created last thursday, this is the discussion the bot is born with.
+    pub thursdayism: Vec<ChatMessage>,
 }
 
-impl Discussion {
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
+impl Default for GodConfig {
+    fn default() -> Self {
+        let thursdayism: Vec<ChatMessage> = vec![
+            ChatMessage::new(
+                MessageRole::System,
+                "Alexis: Oh! Look there! What is that?".to_owned(),
+            ),
+            ChatMessage::new(
+                MessageRole::User,
+                "Alexis: Oh! Look there! What is that?".to_owned(),
+            ),
+            ChatMessage::new(
+                MessageRole::Assistant,
+                "Oh, that is king Dedede! I'm soooo scared!".to_owned(),
+            ),
+            ChatMessage::new(
+                MessageRole::User,
+                "Alexis: Let's fight this ennemy!".to_owned(),
+            ),
+            ChatMessage::new(MessageRole::Assistant, "But i have no sword!?!".to_owned()),
+            ChatMessage::new(
+                MessageRole::User,
+                "Alexis: Here, take this minion.".to_owned(),
+            ),
+            ChatMessage::new(
+                MessageRole::Assistant,
+                "Oof! Thanks for that! I can now fight!".to_owned(),
+            ),
+        ];
+        let options = GenerationOptions::default()
+            .num_ctx(4096)
+            .num_predict(256)
+            .temperature(0.8)
+            .top_k(40)
+            .top_p(0.9)
+            .num_gpu(100)
+            .num_thread(4);
 
-    pub fn clear(&mut self) {
-        self.0.clear()
-    }
-
-    pub fn push(&mut self, prompt: DiscussionKind) {
-        self.0.push(prompt)
-    }
-
-    pub fn init(&mut self) {
-        self.0 = Vec::new();
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        Self {
+            model: "mistral".to_owned(),
+            botname: "Kirby".to_owned(),
+            options,
+            thursdayism,
+        }
     }
 }
 
 // trait Bot, for God
 #[derive(Debug)]
 pub struct God {
-    botname: String,
-    pub brain: Box<dyn Intellect + Sync + Send>,
-    pub memory: Box<AIMemory>,
+    pub brain: OllamaAI,
+    pub config: GodConfig,
+    // The actual live memory of the bot.
+    recollections: Vec<ChatMessage>,
 }
 
+/*
 impl AIMemory {
-    pub fn new(context: String, thursdayism: Discussion) -> AIMemory {
+    pub fn new(context: String, thursdayism: Vec<ChatMessage>) -> AIMemory {
         AIMemory {
-            context,
             thursdayism,
-            recollections: Discussion(Vec::new()),
+            recollections: Vec::new(),
         }
     }
 
@@ -158,182 +165,103 @@ impl fmt::Display for AIMemory {
         )
     }
 }
-
-impl Default for GodMemoryConfig {
+*/
+impl Default for God {
     fn default() -> Self {
-        let initial_prompt: Discussion = Discussion(vec![
-            {
-                DiscussionKind::Prompt {
-                    author: "Alexis".to_string(),
-                    prompt: "Oh! Look there! What is that?".to_string(),
-                }
-            },
-            {
-                DiscussionKind::Response {
-                    author: "Kirby".to_string(),
-                    prompt: "Oh, that is king Dedede! I'm soooo scared!".to_string(),
-                }
-            },
-            {
-                DiscussionKind::Prompt {
-                    author: "Alexis".to_string(),
-                    prompt: "Let's fight this ennemy!".to_string(),
-                }
-            },
-            {
-                DiscussionKind::Response {
-                    author: "Kirby".to_string(),
-                    prompt: "But i have no sword!?!".to_string(),
-                }
-            },
-            {
-                DiscussionKind::Prompt {
-                    author: "Alexis".to_string(),
-                    prompt: "Here, take this minion.".to_string(),
-                }
-            },
-            {
-                DiscussionKind::Response {
-                    author: "Kirby".to_string(),
-                    prompt: "Oof! Thanks for that! I can now fight!".to_string(),
-                }
-            },
-        ]);
-
-        Self { botname: "Kirby".to_string(), context: "Kirby is as one of the most legendary video game characters of all time. In virtually all his appearances, Kirby is depicted as cheerful, innocent and food-loving; however, he becomes fearless, bold and clever in the face of danger.".to_string(),
-        thursdayism: initial_prompt }
+        let config = GodConfig::default();
+        Self::from_config(config)
     }
 }
 
 impl God {
-    pub fn new(botname: &str) -> God {
-        let token_ai21 =
-            env::var("GOD_AI21_TOKEN").expect("Expected a token in the environment for AI21");
-
-        let initial_prompt: Discussion = Discussion(
-            vec![
-                DiscussionKind::Prompt{
-                    author: "Alexis".to_string(),
-                    prompt: "Who is god?".to_string()
-                },
-                DiscussionKind::Response{
-                    author: "Kirby".to_string(),
-                    prompt: "Well, now that you ask, I can tell you. I, God is the great goddess is the god of everybody!".to_string()
-                }],
-        );
-        let memory = AIMemory::new(String::from("God is the god of all beings. Yet, he is the most lovely god and answers in a very complete manner."), initial_prompt);
-
-        God {
-            botname: botname.to_string(),
-            brain: Box::new(AI21 {
-                token: token_ai21,
-                stop_sequences: vec!["Kirby:".to_string(), "---".to_string(), "\n".to_string()],
-                max_tokens: 250,
-                temperature: 0.7,
-                top_p: 1.0,
-            }),
-            memory: Box::new(memory),
-        }
-    }
-
-    pub fn get_prompt(&self, author: &str, prompt: &str) -> String {
-        self.memory.get_prompt(author, prompt, &self.botname)
+    pub fn get_prompt(&self, author: &str, prompt: &str) -> Vec<ChatMessage> {
+        let mut prompts = self.config.thursdayism.clone();
+        prompts.append(&mut self.recollections.clone());
+        prompts.push(ChatMessage::user(format!("{author}: {prompt}").to_owned()));
+        return prompts;
     }
 
     pub fn set_prompt_response(&mut self, author: &str, prompt: &str, response: &str) {
-        self.memory.set_prompt(author, prompt);
-        self.memory.set_response(&self.botname, response)
+        self.recollections.push(ChatMessage::user(
+            format!("{author}: {}", prompt).to_owned(),
+        ));
+        self.recollections
+            .push(ChatMessage::assistant(response.to_owned()));
     }
 
     pub fn set_context(&mut self, context: &str) {
-        self.memory.context = context.to_string();
+        self.config.thursdayism[0] = ChatMessage::system(context.to_owned());
     }
 
     pub fn set_botname(&mut self, name: &str) {
-        self.botname = name.to_string();
+        self.config.botname = name.to_string();
     }
 
     pub fn get_botname(&self) -> String {
-        self.botname.clone()
+        self.config.botname.clone()
     }
 
+    // Remove recollections
     pub fn clear(&mut self) {
-        self.memory.clear();
+        self.recollections.clear();
     }
 
+    // Remove both recollections and thursdayism
     pub fn clear_interactions(&mut self) {
-        self.memory.clear_interactions();
+        self.recollections.clear();
+        let context = self.config.thursdayism.first().unwrap().to_owned();
+        self.config.thursdayism.clear();
+        self.config.thursdayism.push(context);
     }
 
     pub fn add_interaction(&mut self, author: &str, prompt: &str, response: &str) {
-        self.memory
-            .add_interaction(author, prompt, &self.botname, response);
+        self.config.thursdayism.push(ChatMessage::user(
+            format!("{author}: {}", prompt).to_owned(),
+        ));
+        self.config
+            .thursdayism
+            .push(ChatMessage::assistant(response.to_owned()));
     }
 
-    pub fn export_json(&self) -> serde_json::Value {
-        let config = GodMemoryConfig {
-            botname: self.botname.clone(),
-            context: self.memory.context.clone(),
-            thursdayism: self.memory.thursdayism.clone(),
-        };
-        json!(config)
-    }
-
-    pub fn import_json(val: &str) -> Option<Self> {
-        if let Ok(config) = serde_json::from_str::<GodMemoryConfig>(val) {
-            let mut this = Self::new(config.botname.as_str());
-            this.memory.thursdayism = config.thursdayism;
-            this.memory.context = config.context;
-            Some(this)
-        } else {
-            None
+    pub fn from_config(config: GodConfig) -> God {
+        God {
+            brain: OllamaAI::new(&config.model, config.options.clone()),
+            recollections: Vec::new(),
+            config,
         }
     }
 
-    pub fn update_from_config(&mut self, config: &GodMemoryConfig) {
-        self.botname = config.botname.clone();
-        self.memory.thursdayism = config.thursdayism.clone();
-        self.memory.context = config.context.clone();
+    pub fn update_from_config(&mut self, config: GodConfig) {
+        self.brain = OllamaAI::new(&config.model, config.options.clone());
+        self.recollections = Vec::new();
+        self.config = config;
     }
 
-    pub fn from_config(config: &GodMemoryConfig) -> Self {
-        let mut this = Self::new(config.botname.as_str());
-        this.memory.thursdayism = config.thursdayism.clone();
-        this.memory.context = config.context.clone();
-        this
+    pub fn export_json(&self) -> serde_json::Value {
+        json!(self.config)
+    }
+
+    pub fn import_json(val: &str) -> Option<Self> {
+        if let Ok(config) = serde_json::from_str::<GodConfig>(val) {
+            Some(Self::from_config(config))
+        } else {
+            None
+        }
     }
 
     pub fn get_config(&self) -> String {
         format!(
             "{botname} config.
 ===========
-Context:
---------
-{context}
 Initial memory:
 ---------------
 {memory}
 Current memory:
 ---------------
 {current_memory}\n",
-            botname = self.botname,
-            context = self.memory.context,
-            memory = self.memory.thursdayism,
-            current_memory = self
-                .memory
-                .get_prompt("Username", "Some question", &self.botname)
+            botname = self.config.botname,
+            memory = json!(self.config.thursdayism),
+            current_memory = json!(self.recollections)
         )
-    }
-}
-
-impl std::fmt::Debug for Box<AIMemory> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Ohoh, that is a Box<AIMemory!>")
-    }
-}
-
-impl std::fmt::Debug for Box<dyn Intellect + Sync + Send> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Ohoh, that is a Box<AIMemory!>")
     }
 }

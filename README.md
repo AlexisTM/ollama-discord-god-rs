@@ -21,6 +21,13 @@ Commands
 - `God clean`: Cleans the god memory
 - Any sentence with `godname` will be taken in account (Not yet there)
 
+Missing pkg-config on WSL
+=================
+
+```bash
+sudo apt-get update && sudo apt-get upgrade && sudo apt-get install -y pkg-config build-essential libudev-dev
+```
+
 Technical help on how to make a Discord bot:
 ==================
 

@@ -1,31 +1,23 @@
-pub mod ai21;
-pub mod bot_ui;
 pub mod error;
 pub mod god;
+pub mod ollama;
 
+use god::GodConfig;
+use once_cell::sync::Lazy;
+use serenity::all::ComponentInteraction;
+use serenity::gateway::ActivityData;
 use std::env;
 use std::fs;
 use std::time::Duration;
 use std::{collections::HashMap, sync::Arc};
-use once_cell::sync::Lazy;
 
 use redis::Commands;
 
 pub use crate::god::God;
-use bot_ui::UI;
-use serenity::builder::CreateComponents;
-use serenity::model::interactions::message_component::ActionRowComponent;
 
 use serenity::{
     async_trait,
-    model::{
-        channel::Message,
-        gateway::Ready,
-        interactions::{
-            message_component::MessageComponentInteraction, modal::ModalSubmitInteraction,
-            InteractionResponseType,
-        },
-    },
+    model::{channel::Message, gateway::Ready},
     prelude::{Client, Context, EventHandler, GatewayIntents, RwLock, TypeMapKey},
 };
 
@@ -55,17 +47,15 @@ const GOD_PRESENCE: &str = "god are you there?";
 const GOD_ANY: &str = "god";
 const GOD_CONFIG_SET: &str = "god set";
 const GOD_CONFIG_GET: &str = "god get";
-const MAX_MESSAGE_SIZE: usize = 2000;
+const MAX_MESSAGE_SIZE: usize = 8096;
 
-const  GOD_DEFAULT: Lazy<god::GodMemoryConfig> = Lazy::new(|| {
-    god::GodMemoryConfig::default()
-});
-static GOD_LIBRARY: Lazy<RwLock<HashMap<String, god::GodMemoryConfig>>> = Lazy::new(|| {
-    RwLock::new(HashMap::<String, god::GodMemoryConfig>::new())
-});
-
+const GOD_DEFAULT: Lazy<god::GodConfig> = Lazy::new(|| god::GodConfig::default());
+static GOD_LIBRARY: Lazy<RwLock<HashMap<String, god::GodConfig>>> =
+    Lazy::new(|| RwLock::new(HashMap::<String, god::GodConfig>::new()));
 
 async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<God>> {
+    //ComponentInteraction
+    // message_component::ComponentInteraction, modal::ModalInteraction, InteractionResponseType,
     let data = ctx.data.read().await;
     let nursery = data
         .get::<GodNursery>()
@@ -80,17 +70,15 @@ async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<God>> {
 
         let con = client.get_connection_with_timeout(Duration::from_secs(1));
         let new_god = match con {
-            redis::RedisResult::Err(_error) => God::from_config(&GOD_DEFAULT),
+            redis::RedisResult::Err(_error) => God::from_config(GOD_DEFAULT.clone()),
             redis::RedisResult::Ok(mut c) => {
                 let result = c.get::<u64, String>(key);
                 match result {
-                    redis::RedisResult::Ok(val) => {
-                        match God::import_json(val.as_str()) {
-                            Some(god) => god,
-                            _ => God::from_config(&GOD_DEFAULT),
-                        }
-                    }
-                    redis::RedisResult::Err(_error) => God::from_config(&GOD_DEFAULT),
+                    redis::RedisResult::Ok(val) => match God::import_json(val.as_str()) {
+                        Some(god) => god,
+                        _ => God::from_config(GOD_DEFAULT.clone()),
+                    },
+                    redis::RedisResult::Err(_error) => God::from_config(GOD_DEFAULT.clone()),
                 }
             }
         };
@@ -106,294 +94,6 @@ async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<God>> {
     bot
 }
 
-async fn request_modal_data(
-    modal: CreateComponents,
-    title: &str,
-    ctx: &Context,
-    mci: Arc<MessageComponentInteraction>,
-) -> Option<Arc<ModalSubmitInteraction>> {
-    mci.create_interaction_response(&ctx, |r| {
-        r.kind(InteractionResponseType::Modal)
-            .interaction_response_data(|d| {
-                d.custom_id("modal_data").set_components(modal).title(title)
-            })
-    })
-    .await
-    .unwrap();
-    mci.message.await_modal_interaction(&ctx.shard).await
-}
-
-async fn change_name(ctx: &Context, mci: Arc<MessageComponentInteraction>, key: u64) {
-    let data = ctx.data.read().await;
-    let ui = data.get::<UI>().expect("There should be a UI here.");
-
-    let modal_collector =
-        request_modal_data(ui.get_change_name(), "Change god name", ctx, mci.clone()).await;
-
-    let modal = match modal_collector {
-        Some(modal) => modal,
-        None => {
-            mci.message.reply(&ctx, "Timed out").await.unwrap();
-            return;
-        }
-    };
-
-    modal
-        .create_interaction_response(ctx.http.clone(), |f| {
-            f.kind(InteractionResponseType::UpdateMessage)
-                .interaction_response_data(|d| d.content("Gocha!"))
-        })
-        .await
-        .unwrap();
-
-    match &modal.data.components[0].components[0] {
-        ActionRowComponent::InputText(input_text) => {
-            {
-                let god = get_or_create_bot(ctx, key).await;
-                god.write().await.set_botname(&input_text.value);
-            }
-            mci.message
-                .reply(&ctx, format!("I am now named {}", input_text.value))
-                .await
-                .unwrap();
-        }
-        _ => {
-            mci.message
-                .reply(&ctx, "Please do not break my god.")
-                .await
-                .unwrap();
-        }
-    }
-}
-
-
-async fn load_config(ctx: &Context, mci: Arc<MessageComponentInteraction>, key: u64) {
-    let data = ctx.data.read().await;
-    let ui = data.get::<UI>().expect("There should be a UI here.");
-
-    let modal_collector =
-        request_modal_data(ui.get_load_config(), "Load a bot config", ctx, mci.clone()).await;
-
-    let modal = match modal_collector {
-        Some(modal) => modal,
-        None => {
-            mci.message.reply(&ctx, "Timed out").await.unwrap();
-            return;
-        }
-    };
-
-    modal
-        .create_interaction_response(ctx.http.clone(), |f| {
-            f.kind(InteractionResponseType::UpdateMessage)
-                .interaction_response_data(|d| d.content("Gocha!"))
-        })
-        .await
-        .unwrap();
-
-    match &modal.data.components[0].components[0] {
-        ActionRowComponent::SelectMenu(select_menu) => {
-            {
-                let library = GOD_LIBRARY.read().await;
-                let result = select_menu.values.get(0).unwrap();
-                let god_config = library.get(result);
-                if let Some(config) = god_config {
-                    let god = get_or_create_bot(ctx, key).await;
-                    god.write().await.update_from_config(config);
-                }
-            }
-            let god = get_or_create_bot(ctx, key).await;
-
-            mci.message
-                .reply(&ctx, format!("I am now {}", &god.read().await.get_botname()))
-                .await
-                .unwrap();
-        }
-        _ => {
-            mci.message
-                .reply(&ctx, "Please do not break my god.")
-                .await
-                .unwrap();
-        }
-    }
-}
-
-async fn change_context(ctx: &Context, mci: Arc<MessageComponentInteraction>, key: u64) {
-    let data = ctx.data.read().await;
-    let ui = data.get::<UI>().expect("There should be a UI here.");
-
-    let modal_collector =
-        request_modal_data(ui.get_change_context(), "Change context", ctx, mci.clone()).await;
-
-    let modal = match modal_collector {
-        Some(modal) => modal,
-        None => {
-            mci.message.reply(&ctx, "Timed out").await.unwrap();
-            return;
-        }
-    };
-
-    modal
-        .create_interaction_response(ctx.http.clone(), |f| {
-            f.kind(InteractionResponseType::UpdateMessage)
-                .interaction_response_data(|d| d.content("Gocha!"))
-        })
-        .await
-        .unwrap();
-
-    match &modal.data.components[0].components[0] {
-        ActionRowComponent::InputText(input_text) => {
-            {
-                let god = get_or_create_bot(ctx, key).await;
-                god.write().await.set_context(&input_text.value);
-            }
-            mci.message
-                .reply(&ctx, format!("My new context is {}", input_text.value))
-                .await
-                .unwrap();
-        }
-        _ => {
-            mci.message
-                .reply(&ctx, "Please do not break my god.")
-                .await
-                .unwrap();
-        }
-    }
-}
-
-async fn add_interaction(ctx: &Context, mci: Arc<MessageComponentInteraction>, key: u64) {
-    let data = ctx.data.read().await;
-    let ui = data.get::<UI>().expect("There should be a UI here.");
-
-    let modal_collector = request_modal_data(
-        ui.get_add_interaction(),
-        "Add an interaction",
-        ctx,
-        mci.clone(),
-    )
-    .await;
-
-    let modal = match modal_collector {
-        Some(modal) => modal,
-        None => {
-            mci.message.reply(&ctx, "Timed out").await.unwrap();
-            return;
-        }
-    };
-
-    modal
-        .create_interaction_response(ctx.http.clone(), |f| {
-            f.kind(InteractionResponseType::UpdateMessage)
-                .interaction_response_data(|d| d.content("Gocha!"))
-        })
-        .await
-        .unwrap();
-
-    let author = match &modal.data.components[0].components[0] {
-        ActionRowComponent::InputText(input_text) => input_text.value.as_str(),
-        _ => "",
-    };
-    let prompt = match &modal.data.components[1].components[0] {
-        ActionRowComponent::InputText(input_text) => input_text.value.as_str(),
-        _ => "",
-    };
-    let response = match &modal.data.components[2].components[0] {
-        ActionRowComponent::InputText(input_text) => input_text.value.as_str(),
-        _ => "",
-    };
-
-    if author.is_empty() || prompt.is_empty() || response.is_empty() {
-        mci.message
-            .reply(ctx.http.clone(), "One of the inputs is empty.")
-            .await
-            .unwrap();
-    } else {
-        {
-            let god = get_or_create_bot(ctx, key).await;
-            god.write().await.add_interaction(author, prompt, response);
-        }
-        mci.message
-            .reply(ctx.http.clone(), "New default interaction added!")
-            .await
-            .unwrap();
-    }
-}
-
-async fn clear_interactions(ctx: &Context, mci: Arc<MessageComponentInteraction>, key: u64) {
-    {
-        let god = get_or_create_bot(ctx, key).await;
-        god.write().await.clear_interactions();
-    }
-    mci.message
-        .reply(ctx.http.clone(), "All interactions have been removed.")
-        .await
-        .unwrap();
-}
-
-async fn save(ctx: &Context, mci: Arc<MessageComponentInteraction>, key: u64) {
-    let data = ctx.data.read().await;
-    let client = data
-        .get::<RedisClient>()
-        .expect("There should be a redis client here.");
-
-    let con = client.get_connection_with_timeout(Duration::from_secs(1));
-    match con {
-        redis::RedisResult::Err(e) => println!("Failed to connect: {}", e),
-        redis::RedisResult::Ok(mut c) => {
-            let god = get_or_create_bot(ctx, key).await;
-            let json = god.write().await.export_json();
-            let result = c.set::<u64, String, ()>(key, json.to_string());
-            match result {
-                redis::RedisResult::Ok(()) => println!("Success"),
-                redis::RedisResult::Err(e) => println!("Error: {}", e),
-            }
-        }
-    }
-    mci.message
-        .reply(ctx.http.clone(), "This might be saved at some point.")
-        .await
-        .unwrap();
-}
-
-async fn configure_god_mainmenu(ctx: &Context, msg: &Message, key: u64) {
-    let data = ctx.data.read().await;
-    let ui = data.get::<UI>().expect("There should be a UI here.");
-
-    let m = msg
-        .channel_id
-        .send_message(&ctx, |m| {
-            m.content("Please select your configuration")
-                .set_components(ui.get_main_menu())
-            //    .components(|c| c.add_action_row(action_select))
-        })
-        .await
-        .unwrap();
-
-    let mci = match m
-        .await_component_interaction(&ctx)
-        .timeout(Duration::from_secs(60 * 3))
-        .await
-    {
-        Some(ci) => ci,
-        None => {
-            m.reply(&ctx, "Timed out").await.unwrap();
-            return;
-        }
-    };
-
-    let response = mci.data.custom_id.clone();
-
-    match response.as_str() {
-        "change_name" => change_name(ctx, mci.clone(), key).await,
-        "load_config" => load_config(ctx, mci.clone(), key).await,
-        "change_context" => change_context(ctx, mci.clone(), key).await,
-        "add_interaction" => add_interaction(ctx, mci.clone(), key).await,
-        "clear_interactions" => clear_interactions(ctx, mci.clone(), key).await,
-        "save" => save(ctx, mci.clone(), key).await,
-        _ => {}
-    }
-    m.delete(&ctx).await.unwrap();
-}
-
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
@@ -401,19 +101,19 @@ impl EventHandler for Handler {
         let bot_user = ctx.http.get_current_user().await;
 
         let val = match bot_user {
-            Ok(val) => val.id,
-            Err(_) => serenity::model::id::UserId(0),
+            Ok(val) => Some(val.id),
+            Err(_) => None,
         };
 
-        if val == serenity::model::id::UserId(0) || val == msg.author.id {
+        if val == None || val.unwrap() == msg.author.id {
             return;
         }
 
-        let key = msg.channel_id.0;
+        let key = msg.channel_id;
         let lowercase = msg.content.to_ascii_lowercase();
 
         if lowercase == GOD_CLEAN {
-            let god = get_or_create_bot(&ctx, key).await;
+            let god = get_or_create_bot(&ctx, key.into()).await;
             god.write().await.clear();
             if let Err(why) = msg
                 .channel_id
@@ -430,75 +130,85 @@ impl EventHandler for Handler {
                 println!("Error sending message: {:?}", why);
             }
         } else if lowercase == GOD_CONFIG_SET {
-            configure_god_mainmenu(&ctx, &msg, key).await;
+            if let Err(why) = msg.channel_id.say(&ctx.http, "This is under construction.").await {
+                println!("Error sending message: {:?}", why);
+            }
+            // configure_god_mainmenu(&ctx, &msg, key).await;
         } else if lowercase == GOD_CONFIG_GET {
-            let god = get_or_create_bot(&ctx, key).await;
+            let god = get_or_create_bot(&ctx, key.into()).await;
             let config = god.read().await.get_config();
             let config_size = config.len();
             let mut config_curr = 0;
 
             while config_curr + MAX_MESSAGE_SIZE < config_size {
                 let config_next = config_curr + MAX_MESSAGE_SIZE;
-                if let Err(why) = msg.channel_id.say(&ctx.http, &config[config_curr..config_next]).await {
+                if let Err(why) = msg
+                    .channel_id
+                    .say(&ctx.http, &config[config_curr..config_next])
+                    .await
+                {
                     println!("Error sending message: {:?}", why);
                 }
                 config_curr = config_next;
             }
 
-            if let Err(why) = msg.channel_id.say(&ctx.http, &config[config_curr..config_size]).await {
+            if let Err(why) = msg
+                .channel_id
+                .say(&ctx.http, &config[config_curr..config_size])
+                .await
+            {
                 println!("Error sending message: {:?}", why);
             }
         } else if lowercase.starts_with(GOD_REQUEST) {
             let prompt_slice = &msg.content[GOD_REQUEST.len()..];
             let author_name = msg.author.name.clone();
-
-            let god = get_or_create_bot(&ctx, key).await;
+            let god = get_or_create_bot(&ctx, key.into()).await;
 
             let prompt = { god.read().await.get_prompt(&author_name, prompt_slice) };
 
             let response = { god.read().await.brain.request(&prompt).await };
-
-            if !response.is_empty() {
-                if let Err(why) = msg.channel_id.say(&ctx.http, &response).await {
+            if let Some(response) = response {
+                if let Err(why) = msg.channel_id.say(&ctx.http, &response.content).await {
                     println!("Error sending message: {:?}", why);
                 }
                 {
-                    god.write()
-                        .await
-                        .set_prompt_response(&author_name, prompt_slice, &response);
+                    god.write().await.set_prompt_response(
+                        &author_name,
+                        prompt_slice,
+                        &response.content,
+                    );
                 }
             }
         } else if lowercase.contains(GOD_ANY) || msg.is_private() {
             let prompt_slice = &msg.content[..];
             let author_name = msg.author.name.clone();
 
-            let god = get_or_create_bot(&ctx, key).await;
+            let god = get_or_create_bot(&ctx, key.into()).await;
 
             let prompt = { god.read().await.get_prompt(&author_name, prompt_slice) };
 
             let response = { god.read().await.brain.request(&prompt).await };
 
-            if !response.is_empty() {
-                if let Err(why) = msg.channel_id.say(&ctx.http, &response).await {
+            if let Some(response) = response {
+                if let Err(why) = msg.channel_id.say(&ctx.http, &response.content).await {
                     println!("Error sending message: {:?}", why);
                 }
                 {
-                    god.write()
-                        .await
-                        .set_prompt_response(&author_name, prompt_slice, &response);
+                    god.write().await.set_prompt_response(
+                        &author_name,
+                        prompt_slice,
+                        &response.content,
+                    );
                 }
             }
         }
     }
 
     async fn ready(&self, context: Context, _: Ready) {
-        use serenity::model::gateway::Activity;
         use serenity::model::user::OnlineStatus;
-
-        let activity = Activity::playing("Being the master of the universe.");
+        let activity = ActivityData::watching("the world burn");
         let status = OnlineStatus::DoNotDisturb;
-
-        context.set_presence(Some(activity), status).await;
+        context.set_presence(Some(activity), status);
     }
 }
 
@@ -506,7 +216,7 @@ impl EventHandler for Handler {
 async fn main() {
     // Configure the client with your Discord bot token in the environment.
     let token_discord =
-        env::var("DISCORD_BOT_TOKEN").expect("Expected a token in the environment for discord");
+        env::var("DISCORD_BOT_TOKEN").expect("Expected a DISCORD_BOT_TOKEN in the environment");
     let redis_uri = env::var("REDIS_URI").unwrap_or_else(|_| "redis://127.0.0.1/".to_string());
     let gods_path = env::var("GODS_PATH").unwrap_or_else(|_| "./gods".to_string());
 
@@ -515,15 +225,23 @@ async fn main() {
         let mut god_library = GOD_LIBRARY.write().await;
         let paths = fs::read_dir(gods_path).unwrap();
         for path in paths {
-            let entry = if let Ok(data) = path { data } else {continue;};
+            let entry = if let Ok(data) = path {
+                data
+            } else {
+                continue;
+            };
             let path = entry.path();
             let should_be_read = if let Ok(data) = entry.metadata() {
-                data.is_file() && path.extension().unwrap_or_default() == std::ffi::OsString::from("json").to_os_string()
-            } else { false };
+                data.is_file()
+                    && path.extension().unwrap_or_default()
+                        == std::ffi::OsString::from("json").to_os_string()
+            } else {
+                false
+            };
 
             if should_be_read {
                 if let Ok(data) = fs::read_to_string(path) {
-                    if let Ok(new_config) = serde_json::from_str::<god::GodMemoryConfig>(&data) {
+                    if let Ok(new_config) = serde_json::from_str::<GodConfig>(&data) {
                         god_library.insert(new_config.botname.clone(), new_config.clone());
                     }
                 }
@@ -545,11 +263,14 @@ async fn main() {
         let mut data = client.data.write().await;
         data.insert::<GodNursery>(RwLock::new(HashMap::default()));
 
-        let mut bot_ui = UI::default();
         let library = GOD_LIBRARY.read().await;
         let god_library_values = library.values();
-        bot_ui.build_load_config(god_library_values);
-        data.insert::<UI>(bot_ui);
+
+        /*
+            let mut bot_ui = UI::default();
+            bot_ui.build_load_config(god_library_values);
+            data.insert::<UI>(bot_ui);
+        */
 
         match redis::Client::open(redis_uri) {
             redis::RedisResult::Ok(client) => {
