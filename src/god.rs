@@ -189,8 +189,26 @@ impl God {
             None
         }
     }
-
     pub fn get_config(&self) -> String {
+        let memory: String = self
+            .config
+            .thursdayism
+            .iter()
+            .map(|x| match x.role {
+                MessageRole::System => format!("System: {}\n\n", x.content),
+                MessageRole::Assistant => format!("bot: {}\n", x.content),
+                MessageRole::User => format!("{}\n", x.content),
+            })
+            .collect();
+        let recollections: String = self
+            .recollections
+            .iter()
+            .map(|x| match x.role {
+                MessageRole::System => format!("System: {}\\nn", x.content),
+                MessageRole::Assistant => format!("bot: {}\n", x.content),
+                MessageRole::User => format!("{}\n", x.content),
+            })
+            .collect();
         format!(
             "{botname} config.
 ===========
@@ -199,10 +217,10 @@ Initial memory:
 {memory}
 Current memory:
 ---------------
-{current_memory}\n",
+{recollections}\n",
             botname = self.config.botname,
-            memory = json!(self.config.thursdayism),
-            current_memory = json!(self.recollections)
+            memory = memory,
+            recollections = recollections,
         )
     }
 }
