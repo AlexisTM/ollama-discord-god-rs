@@ -1,24 +1,48 @@
 OpenAI Discord bot
 ==================
 
-This is a refactoring of https://github.com/AlexisTM/gpt3-discord-bot in rust for fun purpose.
+Quickstart
+=============
 
-Environment keys:
-- DISCORD_BOT_TOKEN: Discord token to allow the bot to connect, get it from https://discord.com/developers/applications
+```
+# Use WSL on Windows
+wsl --install Ubuntu-22.04
+wsl
 
-Come and test on Discord!: https://discord.gg/Y8XPcj2Q
+# Install Ollama and pre-pull mistral
+curl -fsSL https://ollama.com/install.sh | sh
+ollama pull mistral
+
+# Start your bot
+DISCORD_BOT_TOKEN=DISCORD_BOT_TOKEN cargo run --release gods/marvin.json
+```
 
 Commands
 =============
 
 - `God are you there?`: Replies yes if the server runs
-- `God: `: Answers as a god. The `God:` part is not sent to the god.
-- `God get` Gets the current setup of the god
-- `God clean`: Cleans the god memory
-- Any sentence with `godname` will be taken in account (Not yet there)
+- `God: `: Answers as a god in any channel the bot has access to.
+- `God get` Gets the current history of the god, if you use a modelfile, you won't have the system/initial prompt available
+- `God clean`: Removes the god's memory
+
+Modelfiles
+===============
+
+Modelfiles can be used to preseed your bot directly within ollama to avoid having to send your whole prompt each time. This also simplifies handling message history.
+
+Create your [Marvin modelfile](modelfiles/marvin.modelfile), seed your network and start the bot.
+
+```bash
+ollama create marvin -f modelfiles/marvin.modelfile
+
+DISCORD_BOT_TOKEN=DISCORD_BOT_TOKEN cargo run --release modelfiles/marvin.json
+```
+
+FAQ
+========
 
 Missing pkg-config on WSL
-=================
+--------------
 
 ```bash
 sudo apt-get update && sudo apt-get upgrade && sudo apt-get install -y pkg-config build-essential libudev-dev
@@ -35,20 +59,4 @@ In the oauth section of discord dev portal, make a link to allow your bot to joi
 
 https://discord.com/api/oauth2/authorize?client_id=APPID&permissions=2215115840&scope=bot
 
-In this case, we only need the bot scope and READ/WRITE messages permissions/
-
-Example
-===========
-
-
-`god get` spawns the bot menu, to change the config
-
-![Menu showing: Change name, change context, add interaction, clear interactions, save the god](/doc/menu.png)
-
-Clicking on the buttons creates a modal for easy configuration
-
-![Modal showing asking to change the name](/doc/god_name_change.png)
-
-`god get` shows the current god configuration
-
-![The output of the god get command, showing the bot name, context, available interactions and memory used for generation](/doc/god_get.png)
+In this case, we only need the bot scope and READ/WRITE messages permissions
