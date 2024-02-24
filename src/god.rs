@@ -11,6 +11,8 @@ use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
 
+const MAX_RECOLLECTIONS: usize = 10;
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum DiscussionKind {
     // Splitting them allows to put some different parsing (one extra \n) for responses.
@@ -128,6 +130,11 @@ impl God {
         ));
         self.recollections
             .push(ChatMessage::assistant(response.to_owned()));
+
+        if self.recollections.len() > (MAX_RECOLLECTIONS * 2) {
+            self.recollections.remove(0);
+            self.recollections.remove(0);
+        }
     }
 
     pub fn set_context(&mut self, context: &str) {

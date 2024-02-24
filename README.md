@@ -14,7 +14,7 @@ curl -fsSL https://ollama.com/install.sh | sh
 ollama pull mistral
 
 # Start your bot
-DISCORD_BOT_TOKEN=DISCORD_BOT_TOKEN cargo run --release gods/marvin.json
+DISCORD_BOT_TOKEN=[YOUR_DISCORD_BOT_TOKEN] cargo run --release gods/marvin.json
 ```
 
 Commands
