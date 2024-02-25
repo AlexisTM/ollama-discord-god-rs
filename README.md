@@ -22,10 +22,9 @@ DISCORD_BOT_TOKEN=[YOUR_DISCORD_BOT_TOKEN] cargo run --release gods/marvin.json
 Commands
 =============
 
-- `God are you there?`: Replies yes if the server runs
-- `God: `: Answers as a god in any channel the bot has access to.
-- `God get` Gets the current history of the god, if you use a modelfile, you won't have the system/initial prompt available
-- `God clean`: Removes the god's memory
+- `Direct message`: The god replies to the message
+- `/botname prompt`: Slash command to contact a specific god
+- `/clear`: Slash command to remove the god memory
 
 Modelfiles
 ===============

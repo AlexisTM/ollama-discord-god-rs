@@ -6,7 +6,7 @@ pub mod ollama;
 
 use god::{God, GodConfig, GodNursery};
 
-use serenity::all::{Interaction};
+use serenity::all::Interaction;
 use serenity::gateway::ActivityData;
 use std::env;
 use std::fs;
@@ -81,9 +81,13 @@ impl EventHandler for Handler {
     }
 
     async fn message(&self, ctx: Context, msg: Message) {
+        // This is only used for private messages
+        if !msg.is_private() {
+            return;
+        }
+
         // Prevent answering itself.
         let bot_user = ctx.http.get_current_user().await;
-
         let val = match bot_user {
             Ok(val) => Some(val.id),
             Err(_) => None,
@@ -94,73 +98,24 @@ impl EventHandler for Handler {
         }
 
         let key = msg.channel_id;
-        let lowercase = msg.content.to_ascii_lowercase();
 
-        if lowercase == GOD_CLEAN {
-            let god = get_or_create_bot(&ctx, key.into()).await;
-            god.write().await.clear();
-            if let Err(why) = msg
-                .channel_id
-                .say(
-                    &ctx.http,
-                    "Oh, right, I just forgot about this whole thing.",
-                )
-                .await
+        let prompt_slice = &msg.content[..];
+        let author_name = msg.author.name.clone();
+        let god = get_or_create_bot(&ctx, key.into()).await;
+
+        let prompt = { god.read().await.get_prompt(&author_name, prompt_slice) };
+
+        let response = { god.read().await.brain.request(&prompt).await };
+        if let Some(response) = response {
+            if let Err(why) = msg.channel_id.say(&ctx.http, &response.content).await {
+                println!("Error sending message: {:?}", why);
+            }
             {
-                println!("Error sending message: {:?}", why);
-            }
-        } else if lowercase.starts_with(GOD_PRESENCE) {
-            if let Err(why) = msg.channel_id.say(&ctx.http, "Yes.").await {
-                println!("Error sending message: {:?}", why);
-            }
-        } else if lowercase == GOD_CONFIG_GET {
-            let god = get_or_create_bot(&ctx, key.into()).await;
-            let config = god.read().await.get_config();
-            let config_size = config.len();
-            let mut config_curr = 0;
-
-            while config_curr + MAX_MESSAGE_SIZE < config_size {
-                let config_next = config_curr + MAX_MESSAGE_SIZE;
-                if let Err(why) = msg
-                    .channel_id
-                    .say(&ctx.http, &config[config_curr..config_next])
-                    .await
-                {
-                    println!("Error sending message: {:?}", why);
-                }
-                config_curr = config_next;
-            }
-
-            if let Err(why) = msg
-                .channel_id
-                .say(&ctx.http, &config[config_curr..config_size])
-                .await
-            {
-                println!("Error sending message: {:?}", why);
-            }
-        } else if lowercase.starts_with(GOD_REQUEST) || msg.is_private() {
-            let prompt_slice = if msg.is_private() {
-                &msg.content[..]
-            } else {
-                &msg.content[GOD_REQUEST.len()..]
-            };
-            let author_name = msg.author.name.clone();
-            let god = get_or_create_bot(&ctx, key.into()).await;
-
-            let prompt = { god.read().await.get_prompt(&author_name, prompt_slice) };
-
-            let response = { god.read().await.brain.request(&prompt).await };
-            if let Some(response) = response {
-                if let Err(why) = msg.channel_id.say(&ctx.http, &response.content).await {
-                    println!("Error sending message: {:?}", why);
-                }
-                {
-                    god.write().await.set_prompt_response(
-                        &author_name,
-                        prompt_slice,
-                        &response.content,
-                    );
-                }
+                god.write().await.set_prompt_response(
+                    &author_name,
+                    prompt_slice,
+                    &response.content,
+                );
             }
         }
     }
