@@ -11,7 +11,11 @@ use serenity::prelude::RwLock;
 use crate::god::God;
 
 pub async fn run(ctx: &Context, command: &CommandInteraction, god: Arc<RwLock<God>>) {
-    let author_name = command.user.name.clone();
+    let author_name = if let Some(global_name) = &command.user.global_name {
+        global_name.clone()
+    } else {
+        command.user.name.clone()
+    };
     if let Some(ResolvedOption {
         value: ResolvedValue::String(prompt_slice),
         ..
@@ -22,10 +26,9 @@ pub async fn run(ctx: &Context, command: &CommandInteraction, god: Arc<RwLock<Go
         let response = { god.read().await.brain.request(&prompt).await };
         if let Some(response) = response {
             let content = format!(
-                "{}\n\n{}: {}",
-                &prompt.last().unwrap().content,
+                "\nFrom **{author_name}:**```{prompt_slice}```**{}:**```{}```",
                 god.read().await.get_botname(),
-                response.content.clone()
+                response.content,
             );
             let builder = EditInteractionResponse::new().content(content);
             if let Err(why) = command.edit_response(&ctx.http, builder).await {
