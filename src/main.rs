@@ -1,16 +1,16 @@
 use clap::Parser;
 
+pub mod commands;
 pub mod god;
 pub mod ollama;
 
-use god::{GodConfig, GodNursery};
+use god::{God, GodConfig, GodNursery};
 
+use serenity::all::{Command, Interaction};
 use serenity::gateway::ActivityData;
 use std::env;
 use std::fs;
 use std::{collections::HashMap, sync::Arc};
-
-pub use crate::god::God;
 
 use serenity::{
     async_trait,
@@ -61,6 +61,15 @@ async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<God>> {
 
 #[async_trait]
 impl EventHandler for Handler {
+    async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
+        if let Interaction::Command(command) = interaction {
+            let key = command.channel_id;
+            let god = get_or_create_bot(&ctx, key.into()).await;
+
+            commands::chat::run(&ctx, &command, god).await;
+        }
+    }
+
     async fn message(&self, ctx: Context, msg: Message) {
         // Prevent answering itself.
         let bot_user = ctx.http.get_current_user().await;
@@ -146,11 +155,24 @@ impl EventHandler for Handler {
         }
     }
 
-    async fn ready(&self, context: Context, _: Ready) {
+    async fn ready(&self, ctx: Context, _: Ready) {
         use serenity::model::user::OnlineStatus;
         let activity = ActivityData::watching("the world burn");
         let status = OnlineStatus::DoNotDisturb;
-        context.set_presence(Some(activity), status);
+        ctx.set_presence(Some(activity), status);
+
+        let data = ctx.data.read().await;
+        let config = data
+            .get::<GodConfig>()
+            .expect("There should be god configuration.");
+
+        let guild_command =
+            Command::create_global_command(&ctx.http, commands::chat::register(&config.botname.to_ascii_lowercase()))
+                .await;
+        match guild_command {
+            Ok(_) => println!("Chat guild command added."),
+            Err(why) => println!("Failed to add the guild command: {:?}", why),
+        }
     }
 }
 
