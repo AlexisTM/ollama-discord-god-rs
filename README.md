@@ -1,11 +1,17 @@
-OpenAI Discord bot
+Ollama Discord bot
 ==================
+
+This project allows you to run your **custom** Ollama model **locally** as a Discord bot. It can:
+- Mimick a virtual character (see Mavin, Kirby or Pastafari)
+- Provide mental and relationship help (see Samantha), `This doesn't replace professional help`
+- Python code teacher
+- Dungeon Master assitant to generate encounters on the flight 
 
 Quickstart
 =============
 
 ```
-# Use WSL on Windows
+# Use WSL on Windows, skip on Linux/MacOS
 wsl --install Ubuntu-22.04
 wsl
 
