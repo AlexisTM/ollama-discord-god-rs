@@ -38,6 +38,7 @@ Create your [Marvin modelfile](modelfiles/marvin.modelfile), seed your network a
 ollama create marvin -f modelfiles/marvin.modelfile
 ollama create kirby -f modelfiles/kirby.modelfile
 ollama create pastafari -f modelfiles/pastafari.modelfile
+ollama create samantha -f modelfiles/samantha.modelfile
 
 DISCORD_BOT_TOKEN=DISCORD_BOT_TOKEN cargo run --release modelfiles/marvin.json
 ```
