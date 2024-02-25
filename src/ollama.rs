@@ -22,8 +22,8 @@ impl OllamaAI {
         }
     }
 
-    pub async fn request(&self, messages: &Vec<ChatMessage>) -> Option<ChatMessage> {
-        let request = ChatMessageRequest::new(self.model.clone(), messages.clone());
+    pub async fn request(&self, messages: &[ChatMessage]) -> Option<ChatMessage> {
+        let request = ChatMessageRequest::new(self.model.clone(), messages.to_owned());
         let response = self
             .ollama
             .send_chat_messages(request.options(self.options.clone()))
