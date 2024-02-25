@@ -22,6 +22,7 @@ ollama pull mistral
 # Start your bot
 git clone https://github.com/AlexisTM/ollama-discord-god-rs
 cd ollama-discord-god-rs
+ollama create marvin -f modelfiles/marvin.modelfile
 DISCORD_BOT_TOKEN=[YOUR_DISCORD_BOT_TOKEN] cargo run --release gods/marvin.json
 ```
 
