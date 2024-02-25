@@ -22,8 +22,11 @@ ollama pull mistral
 # Start your bot
 git clone https://github.com/AlexisTM/ollama-discord-god-rs
 cd ollama-discord-god-rs
+DISCORD_BOT_TOKEN=DISCORD_BOT_TOKEN ./run.sh marvin
+
+# or manually
 ollama create marvin -f modelfiles/marvin.modelfile
-DISCORD_BOT_TOKEN=[YOUR_DISCORD_BOT_TOKEN] cargo run --release gods/marvin.json
+DISCORD_BOT_TOKEN=DISCORD_BOT_TOKEN cargo run --release modelfiles/marvin.json
 ```
 
 Commands
@@ -33,21 +36,31 @@ Commands
 - `/botname prompt`: Slash command to contact a specific god
 - `/clear`: Slash command to remove the god memory
 
-Modelfiles
+Custom bot
 ===============
 
-Modelfiles can be used to preseed your bot directly within ollama to avoid having to send your whole prompt each time. This also simplifies handling message history.
+To make your custom god, create a modelfile like [marvin.modelfile](modelfiles/marvin.modelfile) (see the [Modelfile format](https://github.com/ollama/ollama/blob/main/docs/modelfile.md)) and prepare your network. To get your modelfile started, use `ollama show [modelname] --modelfile`
 
-Create your [Marvin modelfile](modelfiles/marvin.modelfile), seed your network and start the bot.
+Then, create a json file with the botname, the model you just created and optional extra generation options to overwrite the PARAMETER you set in the modelfile ([Options available](https://github.com/pepperoni21/ollama-rs/blob/5d6cd76aa4bf073a037a43a4eff70310f07654cd/src/generation/options.rs#L5-L22))
+
+```json
+{
+    "botname": "Marvin",
+    "model": "marvin",
+    "options": {
+        "temperature": 0.5,
+    }
+}
+```
+
+You can then run the god as:
 
 ```bash
 ollama create marvin -f modelfiles/marvin.modelfile
-ollama create kirby -f modelfiles/kirby.modelfile
-ollama create pastafari -f modelfiles/pastafari.modelfile
-ollama create samantha -f modelfiles/samantha.modelfile
-
 DISCORD_BOT_TOKEN=DISCORD_BOT_TOKEN cargo run --release modelfiles/marvin.json
 ```
+
+> The botname should not have special characters nor spaces right now, to be compatible for the /slash command.
 
 FAQ
 ========
