@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use serenity::all::{
-    CommandInteraction, CommandOptionType, Context, CreateCommandOption, EditInteractionResponse, ResolvedValue,
+    CommandInteraction, CommandOptionType, Context, CreateCommandOption, EditInteractionResponse,
+    ResolvedValue,
 };
 use serenity::builder::CreateCommand;
 use serenity::model::application::ResolvedOption;

@@ -6,7 +6,7 @@ pub mod ollama;
 
 use god::{God, GodConfig, GodNursery};
 
-use serenity::all::{Command, Interaction};
+use serenity::all::{Interaction};
 use serenity::gateway::ActivityData;
 use std::env;
 use std::fs;
@@ -22,7 +22,7 @@ struct Handler {}
 
 #[allow(dead_code)]
 fn get_name<T>(_: T) -> String {
-    return std::any::type_name::<T>().to_string();
+    std::any::type_name::<T>().to_string()
 }
 
 const GOD_REQUEST: &str = "god:";
@@ -65,8 +65,18 @@ impl EventHandler for Handler {
         if let Interaction::Command(command) = interaction {
             let key = command.channel_id;
             let god = get_or_create_bot(&ctx, key.into()).await;
+            let botname = god.read().await.get_botname();
 
-            commands::chat::run(&ctx, &command, god).await;
+            match command.data.name.as_str() {
+                "clear" => commands::clear::run(&ctx, &command, god).await,
+                data => {
+                    if data == botname.to_lowercase() {
+                        commands::chat::run(&ctx, &command, god).await
+                    } else {
+                        println!("not implemented :(")
+                    }
+                }
+            }
         }
     }
 
@@ -79,7 +89,7 @@ impl EventHandler for Handler {
             Err(_) => None,
         };
 
-        if val == None || val.unwrap() == msg.author.id {
+        if val.is_none() || val.unwrap() == msg.author.id {
             return;
         }
 
@@ -166,10 +176,15 @@ impl EventHandler for Handler {
             .get::<GodConfig>()
             .expect("There should be god configuration.");
 
-        let guild_command =
-            Command::create_global_command(&ctx.http, commands::chat::register(&config.botname.to_ascii_lowercase()))
-                .await;
-        match guild_command {
+        let guild_commands = ctx
+            .http
+            .create_global_commands(&vec![
+                commands::chat::register(&config.botname.to_ascii_lowercase()),
+                commands::clear::register(),
+            ])
+            .await;
+
+        match guild_commands {
             Ok(_) => println!("Chat guild command added."),
             Err(why) => println!("Failed to add the guild command: {:?}", why),
         }
@@ -192,7 +207,7 @@ async fn main() {
     println!("Reading: {:?}", args.god);
 
     let god_data: String = fs::read_to_string(&args.god)
-        .expect(format!("The god {:?} file must be readable.", &args.god).as_str());
+        .unwrap_or_else(|_| panic!("The god {:?} file must be readable.", &args.god));
     let config = match serde_json::from_str::<GodConfig>(&god_data) {
         Ok(config) => Some(config),
         Err(err) => {

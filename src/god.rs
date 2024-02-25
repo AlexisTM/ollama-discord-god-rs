@@ -68,7 +68,7 @@ impl God {
     pub fn get_prompt(&self, author: &str, prompt: &str) -> Vec<ChatMessage> {
         let mut prompts = self.recollections.clone();
         prompts.push(ChatMessage::user(format!("{author}: {prompt}").to_owned()));
-        return prompts;
+        prompts
     }
 
     pub fn set_prompt_response(&mut self, author: &str, prompt: &str, response: &str) {

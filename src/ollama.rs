@@ -31,6 +31,6 @@ impl OllamaAI {
         if let Ok(response) = response {
             return response.message;
         }
-        return None;
+        None
     }
 }
