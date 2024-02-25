@@ -25,15 +25,7 @@ fn get_name<T>(_: T) -> String {
     std::any::type_name::<T>().to_string()
 }
 
-const GOD_REQUEST: &str = "god:";
-const GOD_CLEAN: &str = "god clean";
-const GOD_CONFIG_GET: &str = "god get";
-const GOD_PRESENCE: &str = "god are you there?";
-const MAX_MESSAGE_SIZE: usize = 8096;
-
 async fn get_or_create_bot(ctx: &Context, key: u64) -> Arc<RwLock<God>> {
-    //ComponentInteraction
-    // message_component::ComponentInteraction, modal::ModalInteraction, InteractionResponseType,
     let data = ctx.data.read().await;
     let nursery = data
         .get::<GodNursery>()
