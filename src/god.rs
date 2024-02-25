@@ -10,7 +10,7 @@ use std::clone::Clone;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-const MAX_RECOLLECTIONS: usize = 10;
+const MAX_RECOLLECTIONS: usize = 20;
 
 // The nursery allows to find the god we are interested in, in all those servers
 pub struct GodNursery;
